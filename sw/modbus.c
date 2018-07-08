@@ -132,6 +132,51 @@ int modbus_readMessage(uint8_t * data, uint16_t * len, uint16_t timeoutMs)
   return rc;
 }
 
+int modbus_writeRegister(uint16_t regAddr, const uint8_t * data, uint8_t len)
+{
+  int rc = 0;
+  if(len > 12)
+  {
+    return -1;
+  }
+  uint8_t buffer[7+12];
+  buffer[0] = 0x01;  // device addr 1
+  buffer[1] = 0x10;  // cmd write
+  // register addr:
+  buffer[2] = regAddr>>8;
+  buffer[3] = regAddr & 0xff;
+  // data length in words:
+  buffer[4] = 0;
+  buffer[5] = len/2;
+  // data length in bytes:
+  buffer[6] = len;
+  memcpy(&buffer[7], data, len);
+  
+  uint8_t totalLen = 7+len;
+  modbus_writeMessage(buffer, totalLen);
+
+  uint8_t rxbuf[6];
+  uint16_t rxlen = 6;
+  rc = modbus_readMessage(rxbuf, &rxlen, 500);
+
+  if(rc != 0)
+  {
+    return rc;
+  }
+
+  if(rxlen != 6)
+  {
+    return -2;
+  }
+
+  if(memcmp(rxbuf, buffer, rxlen) != 0)
+  {
+    return  -3;
+  }
+
+  return rc;
+}
+
 //void readRegister(uint8_t regAddr, uint8_t * data, uint8_t len)
 //{
 //  const size_t sizeBuf = 100;
