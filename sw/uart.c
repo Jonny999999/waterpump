@@ -1,4 +1,9 @@
 #include "uart.h"
+#include <avr/io.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include "time.h"
 #include "bsp_io.h"
 #define BAUD 9600UL      // Baudrate
  

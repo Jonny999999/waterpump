@@ -19,10 +19,11 @@ void modbus_writeMessage(uint8_t * data, uint16_t len)
     snprintf(buf, 10, "%02X", data[i]);
     mputs(buf);
     // calculate checksum:
-    checksum += data[i];
+    checksum = (checksum + data[i]) & 0xff;
   }
+  unsigned int checksumBig = ((~checksum)+1) & 0xff;
   // now append checksum:
-  snprintf(buf, 10, "%02X", ~checksum);
+  snprintf(buf, 10, "%02" PRIX8, checksumBig);
   mputs(buf);
 
   // now append cr nl:
@@ -90,6 +91,7 @@ int modbus_readMessage(uint8_t * data, uint16_t * len, uint16_t timeoutMs)
           }
           else
           {
+            // too much data
             rc = -1;
             break;
           }
@@ -98,21 +100,35 @@ int modbus_readMessage(uint8_t * data, uint16_t * len, uint16_t timeoutMs)
       else
       {
         // scanf failed
-        rc = -1;
+        // no hex number seen
+        rc = -2;
       }
     }
   }
 
-  if(rc == 0 && checksum == 0xff)
+  
+  if(checksum != 0)
+  {
+    //printf("Chksum = 0x%02x, bytesRead = %u\n", checksum, bytesRead);
+    rc = -3;
+  }
+
+  if(rc == 0)
   {
     // success
-    *len = bytesRead;
+    if(checksumOverRead == 1)
+    {
+      *len = bytesRead;
+    }
+    else
+    {
+      *len = bytesRead - 1;
+    }
   }
   else
   {
     *len = 0;
   }
-  
   return rc;
 }
 

@@ -1,10 +1,5 @@
 #pragma once
-#include <avr/io.h>
 #include <inttypes.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
-#include "time.h"
 
 void uart_init();                                                             
 void mputc(char c);
