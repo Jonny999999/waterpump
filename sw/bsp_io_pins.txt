@@ -1,0 +1,20 @@
+// ADC
+APOTI C2 i
+ADRUCK C3 i
+
+// LEDs
+LED0 B6 o
+LED1 B7 o
+LED2 D6 o
+LED3 B0 o
+
+//pollinboard test led
+LEDP D5 o
+
+// UART
+TXDRVEN D2 o
+
+// Taster
+T1 B1 i
+T2 B2 i
+T3 B3 i
