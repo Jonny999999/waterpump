@@ -23,6 +23,8 @@ void modbus_writeMessage(uint8_t * data, uint16_t len)
   }
   // now append checksum:
   snprintf(buf, 10, "%02X", ~checksum);
+  mputs(buf);
+
   // now append cr nl:
   mputs("\r\n");
   
