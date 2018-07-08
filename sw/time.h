@@ -14,5 +14,6 @@ inline uint32_t time_get(void){
   sei();
   return result;
 }
+// more recent time first
 uint32_t time_delta(uint32_t a, uint32_t b);
 #endif
