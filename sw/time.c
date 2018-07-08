@@ -23,3 +23,9 @@ ISR(TIMER2_COMP_vect){
   time_counter++;
 }
 
+uint32_t time_get(void){
+  cli();
+  uint32_t result = time_counter;
+  sei();
+  return result;
+}
