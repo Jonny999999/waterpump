@@ -72,6 +72,26 @@ int main()
   else{
     printf("writeOk\n");
   }
+
+
+  uart_setReadData(":0103041770000071\r\n");
+  uint8_t readData[4] = {4,3,2,1};
+  rc = modbus_readRegister(0x2102, readData, 4);
+  uint8_t expected[4] = {0x17, 0x70, 0x00, 0x00};
+  if(memcmp(readData, expected, 4) != 0)
+  {
+    printf("read failed: data missmatch\n");
+    rc = -8;
+  }
+  if(rc != 0)
+  {
+    printf("read failed: rc = %d\n", rc);
+  }
+  else
+  {
+    printf("readReg OK\n");
+  }
+
   return 0;
 }
 //:010321020002D6

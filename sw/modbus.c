@@ -109,7 +109,6 @@ int modbus_readMessage(uint8_t * data, uint16_t * len, uint16_t timeoutMs)
   
   if(checksum != 0)
   {
-    //printf("Chksum = 0x%02x, bytesRead = %u\n", checksum, bytesRead);
     rc = -3;
   }
 
@@ -136,6 +135,10 @@ int modbus_writeRegister(uint16_t regAddr, const uint8_t * data, uint8_t len)
 {
   int rc = 0;
   if(len > 12)
+  {
+    return -1;
+  }
+  if(len%2 !=0)
   {
     return -1;
   }
@@ -177,32 +180,51 @@ int modbus_writeRegister(uint16_t regAddr, const uint8_t * data, uint8_t len)
   return rc;
 }
 
-//void readRegister(uint8_t regAddr, uint8_t * data, uint8_t len)
-//{
-//  const size_t sizeBuf = 100;
-//  char buffer[sizeBuf];
-//  buffer[0]='\0';
-//
-//  // send
-//  uint8_t chksum = 0x01+0x03 + regAddr + len;
-//  chksum = ~chksum;
-//  snprintf(buffer, sizeBuf, ":0103%04X%04X%02X\r\n", regAddr, len/2, chksum);
-//  mputs(buffer);
-//
-//  // receive
-//  while(mgetc() != ':')
-//  {
-//    // wait for start symbol
-//    // TODO: add timeout
-//  }
-//  for(uint8_t i=0; i< 4; i++)
-//  {
-//    // skip 4 byte
-//    mgetc();
-//  }
-//  // TODO: continue parsing
-//
-//}
+int modbus_readRegister(uint16_t regAddr, uint8_t * data, uint8_t len)
+{
+  int rc = 0;
+  if(len > 12)
+  {
+    return -1;
+  }
+  if(len%2 !=0)
+  {
+    return -1;
+  }
+  uint8_t buffer[6];
+  buffer[0] = 0x01;  // device addr 1
+  buffer[1] = 0x03;  // cmd write
+  // register addr:
+  buffer[2] = regAddr>>8;
+  buffer[3] = regAddr & 0xff;
+  // data length in words:
+  buffer[4] = 0;
+  buffer[5] = len/2;
+
+  modbus_writeMessage(buffer, 6);
+
+  uint8_t rxbuf[3+12];
+  uint16_t rxlen = 3+len;
+  rc = modbus_readMessage(rxbuf, &rxlen, 500);
+
+  if(rc != 0)
+  {
+    return -2;
+  }
+  if(rxlen != 3 + len)
+  {
+    return -3;
+  }
+  if((rxbuf[0] != 0x01) || (rxbuf[1] != 0x03) || (rxbuf[2] != len))
+  {
+    return -4;
+  }
+  // ok everything seems to be OK -> read back data:
+  
+  memcpy(data, &rxbuf[3], len);
+
+  return rc;
+}
 
 void modbus_init()
 {
