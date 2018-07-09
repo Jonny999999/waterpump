@@ -97,17 +97,24 @@ int vfd_setFrequency(uint16_t centiHz)
 
 const uint16_t targetBarDivider = 2;
 
-const int16_t maxFreq = 6000;
+const int16_t maxFreq = 5500;
 
-const int32_t P = 2;
-const int32_t I = 20;
+const int32_t P = 5;
+const int32_t I = 5;
 
 int32_t i = 0;
 void regulateFrequency(MovingAverage<50> & druckAdc, uint16_t targetVal)
 {
   targetVal = targetVal/targetBarDivider;
 
-  int32_t e = targetVal - druckAdc.getAverage();
+  //int32_t e = targetVal - druckAdc.getAverage();
+  int32_t target = ReadChannel(APOTI);
+  target = target / 2;
+  int32_t current = ReadChannel(ADRUCK);
+  //int32_t e = targetVal - ReadChannel(ADRUCK);
+  
+  int32_t e = target-current;
+
   if(e>0)
   {
     LED2_ON;
@@ -126,7 +133,7 @@ void regulateFrequency(MovingAverage<50> & druckAdc, uint16_t targetVal)
     i = -maxFreq*I;
   }
 
-  int32_t frequency = P * e + i/I;
+  int32_t frequency = P * e + i*I;
 
   uint16_t realFreq = 0;
   if(frequency < 0)
@@ -188,7 +195,12 @@ int main(void)
   LED2_ON;
   _delay_ms(125);
   LED3_ON;
-  _delay_ms(125);
+  //_delay_ms(125);
+  uint32_t timeTest = time_get();
+  while(time_delta(time_get(), timeTest) < 2000)
+  {
+
+  }
   LED0_OFF;
   _delay_ms(125);
   LED1_OFF;
@@ -232,8 +244,8 @@ int main(void)
 
       }
       
+      LED3_TOGGLE;
     }
-    uint16_t potiVal = ReadChannel(APOTI);
   }
 
   return 0;
