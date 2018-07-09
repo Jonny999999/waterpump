@@ -97,10 +97,54 @@ int vfd_setFrequency(uint16_t centiHz)
 
 const uint16_t targetBarDivider = 2;
 
+const int16_t maxFreq = 6000;
+
+const int32_t P = 2;
+const int32_t I = 20;
+
+int32_t i = 0;
 void regulateFrequency(MovingAverage<50> & druckAdc, uint16_t targetVal)
 {
   targetVal = targetVal/targetBarDivider;
 
+  int32_t e = targetVal - druckAdc.getAverage();
+  if(e>0)
+  {
+    LED2_ON;
+  }
+  else
+  {
+    LED2_OFF;
+  }
+  i += e;
+  if(i>maxFreq*I)
+  {
+    i = maxFreq*I;
+  }
+  if(i < -maxFreq*I)
+  {
+    i = -maxFreq*I;
+  }
+
+  int32_t frequency = P * e + i/I;
+
+  uint16_t realFreq = 0;
+  if(frequency < 0)
+  {
+    realFreq = 0;
+  }else
+  {
+    if(frequency > maxFreq)
+    {
+      realFreq = maxFreq;
+    }
+    else
+    {
+      realFreq = frequency;
+    }
+  }
+
+  vfd_setFrequency(realFreq);
 }
 
 bool isOff = true;
