@@ -1,0 +1,9 @@
+# ESP-IDF default build directory
+build
+sdkconfig.old
+dependencies.lock
+
+# VIM files
+*.swp
+*.swo
+**/.cache
