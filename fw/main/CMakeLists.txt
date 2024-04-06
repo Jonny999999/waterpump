@@ -1,7 +1,8 @@
 idf_component_register(
     SRCS 
-        "vfd.cpp"
         "main.cpp"
+        "mode.cpp"
+        "vfd.cpp"
     INCLUDE_DIRS 
         "."
     )

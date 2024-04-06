@@ -1,3 +1,4 @@
+#pragma once
 // driver for VFD (variable frequency drive)
 extern "C" {
 #include "driver/gpio.h"
