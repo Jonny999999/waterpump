@@ -8,12 +8,14 @@ extern "C"
 #include <stdio.h>
 #include "vfd.hpp"
 #include "mode.hpp"
+#include "servo.hpp"
 
 extern "C" void app_main(void)
 {
     // set loglevel
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
+    esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
 
     //enable 5V volage regulator (needed for pressure sensor and flow meter)
@@ -22,6 +24,15 @@ extern "C" void app_main(void)
 
     // create motor object
     Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, false);
+
+    // create servo object
+    servoConfig_t servoConfig {
+        .gpioPwmSignal = 22,
+        .minAngle = 0,
+        .maxAngle = 180,
+        .invertDirection = false
+    };
+    ServoMotor servo(servoConfig);
 
     // create control object
     controlConfig_t controlConfig{
@@ -33,10 +44,14 @@ extern "C" void app_main(void)
 
     // create control task
     // TODO: is this task necessary?
-    xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
+    //xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
 
     //TODO add tasks "regulate-pressure", "mqtt", ...
 
+    // test servo
+    while (1){
+        servo.runTestDrive();
+    }
 
     while (1)
     {

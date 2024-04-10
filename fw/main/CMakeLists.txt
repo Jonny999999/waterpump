@@ -3,6 +3,7 @@ idf_component_register(
         "main.cpp"
         "mode.cpp"
         "vfd.cpp"
+        "servo.cpp"
     INCLUDE_DIRS 
         "."
     )
