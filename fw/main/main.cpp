@@ -48,23 +48,35 @@ extern "C" void app_main(void)
 
     //TODO add tasks "regulate-pressure", "mqtt", ...
 
-    // test servo
-    while (1){
+    //===== TESTING =====
+//--- test servo ---
+#define SERVO_TEST
+#ifdef SERVO_TEST
+    while (1)
+    {
         servo.runTestDrive();
     }
+#endif
+
+//--- test vfd ---
+#ifdef VFD_TEST
+    while (1)
+    {
+        motor.setSpeedLevel(0);
+        motor.turnOn();
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        for (int i = 0; i < 10; i++)
+        {
+            motor.setSpeedLevel(i);
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+        motor.turnOff();
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+    }
+#endif
 
     while (1)
     {
         vTaskDelay(portMAX_DELAY);
-        //    motor.setSpeedLevel(0);
-        //    motor.turnOn();
-        //    vTaskDelay(2000 / portTICK_PERIOD_MS);
-        //    for (int i = 0; i < 10; i++)
-        //    {
-        //        motor.setSpeedLevel(i);
-        //        vTaskDelay(2000 / portTICK_PERIOD_MS);
-        //    }
-        //    motor.turnOff();
-        //    vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }

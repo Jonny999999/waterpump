@@ -4,21 +4,32 @@
 
 #include "servo.hpp"
 
-static const char *TAG = "servo";
 
-// parameters from datasheet: (seem to be very common values - same for most stepper motors)
+// parameters from datasheet: 
+// note: seem to be very common values - same for most stepper motors
 #define SERVO_MIN_PULSEWIDTH_US 500  // Minimum pulse width in microsecond
 #define SERVO_MAX_PULSEWIDTH_US 2500 // Maximum pulse width in microsecond
 #define SERVO_TIMEBASE_RESOLUTION_HZ 1000000 // 1MHz, 1us per tick
 #define SERVO_TIMEBASE_PERIOD 20000          // 20000 ticks, 20ms
 
 
+static const char *TAG = "servo";
+
+
+//=======================
+//===== Constructor =====
+//=======================
 ServoMotor::ServoMotor(servoConfig_t config){
     mConfig = config;
     init();
     setAngle(0);
 }
 
+
+//=========================
+//== angleToCompareValue ==
+//=========================
+// convert angle in degrees to value for timer
 inline uint32_t ServoMotor::angleToCompareValue(float angle)
 {
     if (mConfig.invertDirection)
@@ -26,6 +37,10 @@ inline uint32_t ServoMotor::angleToCompareValue(float angle)
     return (angle - mConfig.minAngle) * (SERVO_MAX_PULSEWIDTH_US - SERVO_MIN_PULSEWIDTH_US) / (mConfig.maxAngle - mConfig.minAngle) + SERVO_MIN_PULSEWIDTH_US;
 }
 
+
+//======================
+//======== init ========
+//======================
 void ServoMotor::init()
 {
     ESP_LOGW(TAG, "Initializing servo motor...");
@@ -55,7 +70,7 @@ void ServoMotor::init()
     mcpwm_comparator_config_t comparator_config = {};
     comparator_config.flags.update_cmp_on_tez = true;
 
-    ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_config, &comparator));
+    ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_config, &mComparator));
 
     mcpwm_gen_handle_t generator = NULL;
     mcpwm_generator_config_t generator_config = {};
@@ -63,8 +78,9 @@ void ServoMotor::init()
 
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
 
-    // set the initial compare value, so that the servo will spin to the center position
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angleToCompareValue(mConfig.minAngle)));
+    // set the initial compare value, so that the servo will spin to min pos
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(mConfig.minAngle)));
+    mCurrentAngle = mConfig.minAngle;
 
     ESP_LOGI(TAG, "Set generator action on timer and compare event");
     // go high on counter empty
@@ -72,13 +88,17 @@ void ServoMotor::init()
                                                               MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH)));
     // go low on compare threshold
     ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(generator,
-                                                                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparator, MCPWM_GEN_ACTION_LOW)));
+                                                                MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, mComparator, MCPWM_GEN_ACTION_LOW)));
 
     ESP_LOGI(TAG, "Enable and start timer");
     ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
     ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
 }
 
+
+//========================
+//======= setAngle =======
+//========================
 void ServoMotor::setAngle(float newAngle)
 {
     // limit angle to configured range
@@ -92,14 +112,18 @@ void ServoMotor::setAngle(float newAngle)
     }
     // move servo to new angle
     ESP_LOGI(TAG, "Setting new angle of rotation: %f", newAngle);
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, angleToCompareValue(newAngle)));
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(newAngle)));
     // update stored angle
-    float mCurrentAngle = newAngle;
+    mCurrentAngle = newAngle;
 }
 
+
+//========================
+//===== runTestDrive =====
+//========================
 void ServoMotor::runTestDrive()
 {
-    ESP_LOGI(TAG, "Starting test drive sequence");
+    ESP_LOGW(TAG, "Starting test drive sequence");
     setAngle(mConfig.maxAngle);
     vTaskDelay(pdMS_TO_TICKS(1500));
     setAngle(mConfig.minAngle);
