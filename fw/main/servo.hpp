@@ -7,8 +7,9 @@
 typedef struct servoConfig_t
 {
     int gpioPwmSignal;
-    int minAngle;
-    int maxAngle;
+    int ratedAngle;
+    int minAllowedAngle;
+    int maxAllowedAngle;
     bool invertDirection;
 } servoConfig_t;
 
@@ -18,13 +19,19 @@ class ServoMotor
 {
 public:
     ServoMotor(servoConfig_t config);
-    void setAngle(float newAngle);
+    void setAngle(float newAngle); // move to absolute (e.g. 0-180) angle, note: will limit to allowed range
+    void setPercentage(float newPosition); // move to percentage within configured allowed range: 0=minAllowed, 100=maxAllowed
     void runTestDrive();
     float getAngle() const {return mCurrentAngle;};
+    float getPercent() const {return absAngleToRelPercent(mCurrentAngle);};
 
 private:
+    // methods
     void init();
-    uint32_t angleToCompareValue(float angle);
+    uint32_t angleToCompareValue(float angle) const;
+    float absAngleToRelPercent(float angle) const;
+    float relPercentToAbsAngle(float percent) const;
+    // variables
     servoConfig_t mConfig;
     mcpwm_cmpr_handle_t mComparator = NULL;
     float mCurrentAngle = 0;

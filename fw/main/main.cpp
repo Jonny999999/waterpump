@@ -35,9 +35,10 @@ extern "C" void app_main(void)
     // create servo object
     servoConfig_t servoConfig {
         .gpioPwmSignal = 27,
-        .minAngle = 0,
-        .maxAngle = 180,
-        .invertDirection = false
+        .ratedAngle = 180,
+        .minAllowedAngle = 11, // valve completely closed
+        .maxAllowedAngle = 89, // valve completely open
+        .invertDirection = true
     };
     ServoMotor servo(servoConfig);
 
@@ -103,6 +104,7 @@ while(1){
     ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
     // apply poti to servo
     servo.setAngle(180*potiPercent/100);
+    //servo.setPercentage(potiPercent);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 

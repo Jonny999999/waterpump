@@ -22,7 +22,7 @@ static const char *TAG = "servo";
 ServoMotor::ServoMotor(servoConfig_t config){
     mConfig = config;
     init();
-    setAngle(0);
+    setAngle(config.minAllowedAngle);
 }
 
 
@@ -30,11 +30,25 @@ ServoMotor::ServoMotor(servoConfig_t config){
 //== angleToCompareValue ==
 //=========================
 // convert angle in degrees to value for timer
-inline uint32_t ServoMotor::angleToCompareValue(float angle)
+inline uint32_t ServoMotor::angleToCompareValue(float angle) const
 {
     if (mConfig.invertDirection)
-        angle = mConfig.maxAngle - angle;
-    return (angle - mConfig.minAngle) * (SERVO_MAX_PULSEWIDTH_US - SERVO_MIN_PULSEWIDTH_US) / (mConfig.maxAngle - mConfig.minAngle) + SERVO_MIN_PULSEWIDTH_US;
+        angle = mConfig.ratedAngle - angle;
+    return angle * (SERVO_MAX_PULSEWIDTH_US - SERVO_MIN_PULSEWIDTH_US) / mConfig.ratedAngle + SERVO_MIN_PULSEWIDTH_US;
+}
+
+
+//=========================
+//=== angle <-> percent ===
+//=========================
+// convert between absolute angle and percentage of configured allowed range (e.g. 10-90deg to 0-100%)
+inline float ServoMotor::absAngleToRelPercent(float angle) const
+{
+    return 100 * (angle - mConfig.minAllowedAngle) / (mConfig.maxAllowedAngle - mConfig.minAllowedAngle);
+}
+inline float ServoMotor::relPercentToAbsAngle(float percent) const
+{
+    return percent * (mConfig.maxAllowedAngle - mConfig.minAllowedAngle) / 100 + mConfig.minAllowedAngle;
 }
 
 
@@ -79,8 +93,8 @@ void ServoMotor::init()
     ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
 
     // set the initial compare value, so that the servo will spin to min pos
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(mConfig.minAngle)));
-    mCurrentAngle = mConfig.minAngle;
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(mConfig.minAllowedAngle)));
+    mCurrentAngle = mConfig.minAllowedAngle;
 
     ESP_LOGI(TAG, "Set generator action on timer and compare event");
     // go high on counter empty
@@ -102,19 +116,28 @@ void ServoMotor::init()
 void ServoMotor::setAngle(float newAngle)
 {
     // limit angle to configured range
-    if (newAngle > mConfig.maxAngle){
-        ESP_LOGE(TAG, "Target '%f' exceeds max angle -> limiting to %d", newAngle, mConfig.maxAngle);
-        newAngle = mConfig.maxAngle;
+    if (newAngle > mConfig.maxAllowedAngle){
+        ESP_LOGE(TAG, "Target '%f' exceeds max allowed angle -> limiting to %d", newAngle, mConfig.maxAllowedAngle);
+        newAngle = mConfig.maxAllowedAngle;
     }
-    if (newAngle < mConfig.minAngle){
-        ESP_LOGE(TAG, "Target '%f' is below min angle -> limiting to %d", newAngle, mConfig.minAngle);
-        newAngle = mConfig.minAngle;
+    if (newAngle < mConfig.minAllowedAngle){
+        ESP_LOGE(TAG, "Target '%f' is below min allowed angle -> limiting to %d", newAngle, mConfig.minAllowedAngle);
+        newAngle = mConfig.minAllowedAngle;
     }
     // move servo to new angle
-    ESP_LOGI(TAG, "Setting new angle of rotation: %f", newAngle);
+    ESP_LOGI(TAG, "Setting new angle of rotation: %f (%.1f %% of allowed range)", newAngle, absAngleToRelPercent(newAngle));
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(newAngle)));
     // update stored angle
     mCurrentAngle = newAngle;
+}
+
+
+//=========================
+//===== setPercentage =====
+//=========================
+// move to percentage within allowed range 0=minAllowed, 100=maxAllowed
+void ServoMotor::setPercentage(float percent){
+    setAngle(relPercentToAbsAngle(percent));
 }
 
 
@@ -124,12 +147,12 @@ void ServoMotor::setAngle(float newAngle)
 void ServoMotor::runTestDrive()
 {
     ESP_LOGW(TAG, "Starting test drive sequence");
-    setAngle(mConfig.maxAngle);
+    setAngle(mConfig.maxAllowedAngle);
     vTaskDelay(pdMS_TO_TICKS(1500));
-    setAngle(mConfig.minAngle);
+    setAngle(mConfig.minAllowedAngle);
     vTaskDelay(pdMS_TO_TICKS(1500));
-    setAngle(mConfig.maxAngle/2);
+    setAngle(mConfig.maxAllowedAngle/2);
     vTaskDelay(pdMS_TO_TICKS(1000));
-    setAngle(mConfig.minAngle);
+    setAngle(mConfig.minAllowedAngle);
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
