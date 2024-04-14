@@ -25,6 +25,8 @@ extern "C" void app_main(void)
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
+    esp_log_level_set("regulateValve", ESP_LOG_DEBUG);
+    esp_log_level_set("reulateMotor", ESP_LOG_DEBUG);
 
     //enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
@@ -36,9 +38,12 @@ extern "C" void app_main(void)
     // create servo object
     servoConfig_t servoConfig {
         .gpioPwmSignal = 27,
+        .gpioEnablePower = 13, // onboard realy
         .ratedAngle = 180,
-        .minAllowedAngle = 11, // valve completely closed
-        .maxAllowedAngle = 89, // valve completely open
+        // Coupling V1: 17 to 87 (no play)
+        // Coupling V2: 11 to 89 deg 
+        .minAllowedAngle = 17, // valve completely closed
+        .maxAllowedAngle = 87, // valve completely open
         .invertDirection = true
     };
     ServoMotor servo(servoConfig);
@@ -68,7 +73,7 @@ extern "C" void app_main(void)
     //===== TESTING =====
 
 //--- test vfd ---
-#define VFD_TEST
+//#define VFD_TEST
 #ifdef VFD_TEST
     // test on/off
     motor.turnOn();
@@ -103,6 +108,7 @@ extern "C" void app_main(void)
 
 
 // --- test poti, servo, pressure-sensor ---
+//#define SERVO_TEST
 #ifdef SERVO_TEST
 while(1){
     // test pressure sensor
@@ -122,28 +128,31 @@ while(1){
 #endif
 
 //--- test pressure regulation ---
-//#define REGULATION_TEST
+#define REGULATION_TEST
 #ifdef REGULATION_TEST
 #define MAX_PRESSURE 8
-while(1){
-    //TODO add timeouts
-    // read poti
-    int potiRaw = adc1_get_raw(ADC_POTI);
-    float potiPercent = (float)potiRaw/4095*100;
-    // define target pressure
-    float pressureTarget = potiPercent * MAX_PRESSURE / 100;
-    // read pressure
-    float pressureNow = pressureSensor.readBar();
-    float pressureDiff = pressureNow - pressureTarget;
+    // turn on at startup
+    motor.turnOn();
+    while (1)
+    {
+        // TODO add timeouts
+        //  read poti
+        int potiRaw = adc1_get_raw(ADC_POTI);
+        float potiPercent = (float)potiRaw / 4095 * 100;
+        // define target pressure
+        float pressureTarget = potiPercent * MAX_PRESSURE / 100;
+        // read pressure
+        float pressureNow = pressureSensor.readBar();
+        float pressureDiff = pressureNow - pressureTarget;
 
-    ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
-    potiRaw, pressureTarget, pressureNow, pressureDiff);
-    
-    //regulate
-    regulateValve(pressureDiff, &servo);
-    regulateMotor(pressureDiff, &servo, &motor);
+        ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
+                 potiRaw, pressureTarget, pressureNow, pressureDiff);
 
-    vTaskDelay(250 / portTICK_PERIOD_MS);
+        // regulate
+        regulateValve(pressureDiff, &servo);
+        regulateMotor(pressureDiff, &servo, &motor);
+
+        vTaskDelay(250 / portTICK_PERIOD_MS);
 }
 #endif
 

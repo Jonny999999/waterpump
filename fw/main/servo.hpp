@@ -7,6 +7,7 @@
 typedef struct servoConfig_t
 {
     int gpioPwmSignal;
+    int gpioEnablePower;
     int ratedAngle;
     int minAllowedAngle;
     int maxAllowedAngle;

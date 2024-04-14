@@ -1,6 +1,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "esp_rom_gpio.h"
+#include "driver/gpio.h"
+#include "math.h"
 
 #include "servo.hpp"
 
@@ -60,6 +63,12 @@ float ServoMotor::getPercent() const { return absAngleToRelPercent(mCurrentAngle
 void ServoMotor::init()
 {
     ESP_LOGW(TAG, "Initializing servo motor...");
+    // configure output that enables the power for servo motor
+    ESP_LOGW(TAG, "Init enable power output");
+    esp_rom_gpio_pad_select_gpio((gpio_num_t)mConfig.gpioEnablePower);
+    gpio_set_direction((gpio_num_t)mConfig.gpioEnablePower, GPIO_MODE_OUTPUT);
+
+    // configure timer for the PWM signal
     ESP_LOGI(TAG, "Create timer and operator");
     mcpwm_timer_handle_t timer = NULL;
     mcpwm_timer_config_t timer_config = {
@@ -127,10 +136,23 @@ void ServoMotor::setAngle(float newAngle)
         newAngle = mConfig.minAllowedAngle;
     }
     // move servo to new angle
+    //FIXME: rework or remove below section (power management servo) 
+    //  this was quick and dirty fix to prevent servo crash 
+    //  at power down while testing
+    //only change if not at pos already with 1 deg tolerance
+    float angleDiff = fabs(mCurrentAngle - newAngle);
+    if (angleDiff > 1){
     ESP_LOGI(TAG, "Setting new angle of rotation: %f (%.1f %% of allowed range)", newAngle, absAngleToRelPercent(newAngle));
+    gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 1);
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(newAngle)));
     // update stored angle
+    // wait some time for target position reached
+    #define TIME_MAX_TRAVEL_MS 2000
+    #define MIN_ON_TIME 100
+    vTaskDelay((angleDiff/mConfig.ratedAngle * TIME_MAX_TRAVEL_MS  + MIN_ON_TIME) / portTICK_PERIOD_MS);
     mCurrentAngle = newAngle;
+    gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 0);
+    }
 }
 
 

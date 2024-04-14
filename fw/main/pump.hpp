@@ -9,9 +9,10 @@
 //==== regulateValve ====
 //=======================
 // TODO adjust parameters
+// TODO smaller steps
 #define Kp 2            // proportional gain
-#define Ki 0.1          // integral gain
-#define MAX_INTEGRAL 90 // maximum integral term to prevent windup
+#define Ki 0.5          // integral gain
+#define MAX_INTEGRAL 40 // maximum integral term to prevent windup
 #define MIN_MOVE_ANGLE 2
 void regulateValve(float pressureDiff, ServoMotor *pValve)
 {
@@ -68,22 +69,23 @@ void regulateValve(float pressureDiff, ServoMotor *pValve)
 //=======================
 //==== regulateMotor ====
 //=======================
-#define MAX_SPEED_LEVEL 6
+#define MAX_SPEED_LEVEL 3
 #define MIN_SPEED_LEVEL 1
+//TODO add min duration valve is above threshold
 void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMotor)
 {
     int newSpeedLevel = pMotor->getSpeedLevel();
 
-    // pressure too low but valve already completely closed => speed up
-    if (pressureDiff < 0 && pValve->getPercent() == 0 && newSpeedLevel < MAX_SPEED_LEVEL)
+    // pressure too low but valve already almost compeltely closed => speed up
+    if (pressureDiff < 0 && pValve->getPercent() < 5 && newSpeedLevel < MAX_SPEED_LEVEL)
     {
-        pMotor->setSpeedLevel(newSpeedLevel);
+        pMotor->setSpeedLevel(++newSpeedLevel);
         ESP_LOGW("regulateMotor", "increasing motor speed to %d", newSpeedLevel); // todo also log variables
     }
     // pressure too high but valve already wide open => slow down
-    else if (pressureDiff < 0 && pValve->getPercent() > 80 && newSpeedLevel > MIN_SPEED_LEVEL) // TODO adjust valve threshold
+    else if (pressureDiff > 0 && pValve->getPercent() > 80 && newSpeedLevel > MIN_SPEED_LEVEL) // TODO adjust valve threshold
     {
-        pMotor->setSpeedLevel(newSpeedLevel--);
+        pMotor->setSpeedLevel(--newSpeedLevel);
         ESP_LOGW("regulateMotor", "decreasing motor speed to %d", newSpeedLevel); // todo also log variables
     }
 }
