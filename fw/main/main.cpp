@@ -31,7 +31,7 @@ extern "C" void app_main(void)
     gpio_set_level(GPIO_NUM_17, 1);
 
     // create motor object
-    Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, false);
+    Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, true);
 
     // create servo object
     servoConfig_t servoConfig {
@@ -68,19 +68,34 @@ extern "C" void app_main(void)
     //===== TESTING =====
 
 //--- test vfd ---
+#define VFD_TEST
 #ifdef VFD_TEST
+    // test on/off
+    motor.turnOn();
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    motor.turnOff();
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    motor.turnOn();
+    // test speed levels
     while (1)
     {
-        motor.setSpeedLevel(0);
-        motor.turnOn();
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
-        for (int i = 0; i < 10; i++)
-        {
-            motor.setSpeedLevel(i);
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
-        }
-        motor.turnOff();
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // vary speed level time based
+        // motor.setSpeedLevel(0);
+        // motor.turnOn();
+        // vTaskDelay(2000 / portTICK_PERIOD_MS);
+        // for (int i = 0; i < 10; i++)
+        //{
+        //     motor.setSpeedLevel(i);
+        //     vTaskDelay(2000 / portTICK_PERIOD_MS);
+        // }
+        // motor.turnOff();
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+        // set motor speed using poti
+        int potiRaw = adc1_get_raw(ADC_POTI);
+        float potiPercent = (float)potiRaw / 4095 * 100;
+        motor.setSpeedLevel(potiPercent * 4 / 100);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 #endif
 
@@ -107,7 +122,7 @@ while(1){
 #endif
 
 //--- test pressure regulation ---
-#define REGULATION_TEST
+//#define REGULATION_TEST
 #ifdef REGULATION_TEST
 #define MAX_PRESSURE 8
 while(1){

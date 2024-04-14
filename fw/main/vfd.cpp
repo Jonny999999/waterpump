@@ -1,5 +1,6 @@
 extern "C" {
 #include "esp_log.h"
+#include "esp_rom_gpio.h"
 }
 #include "vfd.hpp"
 
@@ -38,10 +39,16 @@ Vfd4DigitalPins::Vfd4DigitalPins(
 void Vfd4DigitalPins::initGpios()
 {
     ESP_LOGI(TAG, "configuring gpio pins...");
+    esp_rom_gpio_pad_select_gpio(mGpioBit0);
     gpio_set_direction(mGpioBit0, GPIO_MODE_OUTPUT);
+    esp_rom_gpio_pad_select_gpio(mGpioBit1);
     gpio_set_direction(mGpioBit1, GPIO_MODE_OUTPUT);
+    esp_rom_gpio_pad_select_gpio(mGpioBit2);
     gpio_set_direction(mGpioBit2, GPIO_MODE_OUTPUT);
+    esp_rom_gpio_pad_select_gpio(mGpioOn);
     gpio_set_direction(mGpioOn, GPIO_MODE_OUTPUT);
+    turnOff();
+    setSpeedLevel(mSpeedLevel);
 }
 
 
@@ -77,9 +84,11 @@ void Vfd4DigitalPins::turnOff()
 void Vfd4DigitalPins::setSpeedLevel(uint8_t newSpeedLevel)
 {
     // limit to max range 0-7 (3 bits)
-    if (newSpeedLevel > 0b111)
+    // if (newSpeedLevel > 0b111)
+    if (newSpeedLevel > 3) //currently only 3 levels available due to hardware issue
     {
-        mSpeedLevel = 0b111;
+        //mSpeedLevel = 0b111;
+        mSpeedLevel = 3;
         ESP_LOGE(TAG, "target speed level '%d' exceeds limit -> setting to '%d' (max)", newSpeedLevel, 0b111);
     }
     else
@@ -92,10 +101,31 @@ void Vfd4DigitalPins::setSpeedLevel(uint8_t newSpeedLevel)
     else
         level = mSpeedLevel;
 
+//FIXME debug vfd for all 7 levels to work
+// current workaround use those that work:
+// note: currently assumes output is inverted in constructor
+    switch (mSpeedLevel)
+    {
+    default:
+    case 0:
+        level = 0b000; //fixme currently 0Hz
+        break;
+    case 1:            //"secton speed 6" on page11
+        level = 0b111; // or: 011, 110
+        break;
+    case 2:            //"secton speed 4" on page11
+        level = 0b101; // or: 001, 100
+        break;
+    case 3: //"secton speed 2" on page11
+        level = 0b010;
+        break;
+    }
+
     // apply 3 bits of level to gpio pins
     gpio_set_level(mGpioBit0, level & 1 << 0);
     gpio_set_level(mGpioBit1, level & 1 << 1);
     gpio_set_level(mGpioBit2, level & 1 << 2);
+
     // log current pin state
     ESP_LOGD(TAG, "set speed level to %d, outputs: %d%d%d",
              mSpeedLevel,
