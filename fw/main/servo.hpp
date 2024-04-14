@@ -23,7 +23,7 @@ public:
     void setPercentage(float newPosition); // move to percentage within configured allowed range: 0=minAllowed, 100=maxAllowed
     void runTestDrive();
     float getAngle() const {return mCurrentAngle;};
-    float getPercent() const {return absAngleToRelPercent(mCurrentAngle);};
+    float getPercent() const;
 
 private:
     // methods

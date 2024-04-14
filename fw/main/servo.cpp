@@ -51,6 +51,8 @@ inline float ServoMotor::relPercentToAbsAngle(float percent) const
     return percent * (mConfig.maxAllowedAngle - mConfig.minAllowedAngle) / 100 + mConfig.minAllowedAngle;
 }
 
+//return current position in percent
+float ServoMotor::getPercent() const { return absAngleToRelPercent(mCurrentAngle); };
 
 //======================
 //======== init ========

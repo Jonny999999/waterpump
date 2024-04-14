@@ -20,6 +20,7 @@ public:
     void turnOn(uint8_t speedLevel); // turn on at certain speed level
     void turnOff();
     void setSpeedLevel(uint8_t speedLevel); // change speed level 0-7
+    int getSpeedLevel() const {return mSpeedLevel;};
 
 private:
     // methods
