@@ -57,16 +57,25 @@ inline float ServoMotor::relPercentToAbsAngle(float percent) const
 //return current position in percent
 float ServoMotor::getPercent() const { return absAngleToRelPercent(mCurrentAngle); };
 
+
 //======================
 //======== init ========
 //======================
 void ServoMotor::init()
 {
     ESP_LOGW(TAG, "Initializing servo motor...");
-    // configure output that enables the power for servo motor
-    ESP_LOGW(TAG, "Init enable power output");
-    esp_rom_gpio_pad_select_gpio((gpio_num_t)mConfig.gpioEnablePower);
-    gpio_set_direction((gpio_num_t)mConfig.gpioEnablePower, GPIO_MODE_OUTPUT);
+    // configure output that enables the power for servo motor if feature is used
+    if (mConfig.powerEnableRequired)
+    {
+        ESP_LOGW(TAG, "Init enable power output gpio pin");
+        esp_rom_gpio_pad_select_gpio((gpio_num_t)mConfig.gpioEnablePower);
+        gpio_set_direction((gpio_num_t)mConfig.gpioEnablePower, GPIO_MODE_OUTPUT);
+        // initially disable power
+        gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 0);
+        isEnabled = false;
+    } else {
+        isEnabled = true;
+    };
 
     // configure timer for the PWM signal
     ESP_LOGI(TAG, "Create timer and operator");
@@ -121,11 +130,40 @@ void ServoMotor::init()
 }
 
 
+//==========================
+//==== enable / disable ====
+//==========================
+void ServoMotor::enable()
+{
+    if (mConfig.powerEnableRequired)
+    {
+        ESP_LOGI(TAG, "enabling servo motor power (turning gpio%d on)", mConfig.gpioEnablePower);
+        gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 1);
+    }
+    isEnabled = true;
+}
+void ServoMotor::disable()
+{
+    if (mConfig.powerEnableRequired)
+    {
+        ESP_LOGI(TAG, "disabling servo motor power (turning gpio%d off)", mConfig.gpioEnablePower);
+        gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 0);
+    }
+    isEnabled = false;
+}
+
+
 //========================
 //======= setAngle =======
 //========================
 void ServoMotor::setAngle(float newAngle)
 {
+    // dont move if power not enabled
+    if (!isEnabled){
+        ESP_LOGE(TAG, "Wont set new angle, servo power is not enabled yet. run `.enable()` first!");
+        return;
+    }
+
     // limit angle to configured range
     if (newAngle > mConfig.maxAllowedAngle){
         ESP_LOGE(TAG, "Target '%f' exceeds max allowed angle -> limiting to %d", newAngle, mConfig.maxAllowedAngle);
@@ -135,24 +173,15 @@ void ServoMotor::setAngle(float newAngle)
         ESP_LOGE(TAG, "Target '%f' is below min allowed angle -> limiting to %d", newAngle, mConfig.minAllowedAngle);
         newAngle = mConfig.minAllowedAngle;
     }
+    // log movement action
+    ESP_LOGI(TAG, "Moving by %.3f degrees, New angle of rotation: %f (%.1f %% of allowed range)",
+             fabs(mCurrentAngle - newAngle),
+             newAngle,
+             absAngleToRelPercent(newAngle));
     // move servo to new angle
-    //FIXME: rework or remove below section (power management servo) 
-    //  this was quick and dirty fix to prevent servo crash 
-    //  at power down while testing
-    //only change if not at pos already with 1 deg tolerance
-    float angleDiff = fabs(mCurrentAngle - newAngle);
-    if (angleDiff > 1){
-    ESP_LOGI(TAG, "Setting new angle of rotation: %f (%.1f %% of allowed range)", newAngle, absAngleToRelPercent(newAngle));
-    gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 1);
     ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(newAngle)));
     // update stored angle
-    // wait some time for target position reached
-    #define TIME_MAX_TRAVEL_MS 2000
-    #define MIN_ON_TIME 100
-    vTaskDelay((angleDiff/mConfig.ratedAngle * TIME_MAX_TRAVEL_MS  + MIN_ON_TIME) / portTICK_PERIOD_MS);
     mCurrentAngle = newAngle;
-    gpio_set_level((gpio_num_t)mConfig.gpioEnablePower, 0);
-    }
 }
 
 

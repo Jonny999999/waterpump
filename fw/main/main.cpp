@@ -39,6 +39,7 @@ extern "C" void app_main(void)
     servoConfig_t servoConfig {
         .gpioPwmSignal = 27,
         .gpioEnablePower = 13, // onboard realy
+        .powerEnableRequired = true, // require enable() call to turn above pin on
         .ratedAngle = 180,
         // Coupling V1: 17 to 87 (no play)
         // Coupling V2: 11 to 89 deg 
@@ -47,6 +48,7 @@ extern "C" void app_main(void)
         .invertDirection = true
     };
     ServoMotor servo(servoConfig);
+    servo.enable(); // turn servo power supply on (onboard relay)
 
     // create control object
     controlConfig_t controlConfig{
