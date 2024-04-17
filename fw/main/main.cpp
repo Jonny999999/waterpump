@@ -145,7 +145,8 @@ while(1){
         float pressureTarget = potiPercent * MAX_PRESSURE / 100;
         // read pressure
         float pressureNow = pressureSensor.readBar();
-        float pressureDiff = pressureNow - pressureTarget;
+        // calcuate difference (positive = too low,  negative = too high)
+        float pressureDiff = pressureTarget - pressureNow;
 
         ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
                  potiRaw, pressureTarget, pressureNow, pressureDiff);
