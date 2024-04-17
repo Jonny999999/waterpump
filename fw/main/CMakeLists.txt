@@ -5,6 +5,7 @@ idf_component_register(
         "vfd.cpp"
         "servo.cpp"
         "pressureSensor.cpp"
+        "pumpControl.cpp"
     INCLUDE_DIRS 
         "."
     )

@@ -13,7 +13,7 @@ extern "C"
 #include "mode.hpp"
 #include "servo.hpp"
 #include "pressureSensor.hpp"
-#include "pump.hpp"
+#include "pumpControl.hpp"
 
 //tag for logging
 static const char * TAG = "main";
@@ -60,6 +60,9 @@ extern "C" void app_main(void)
 
     // create pressure sensor on gpio 36
     AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.25, 2.5, 0, 30);
+
+    // create controlled valve object that regulates the valve position
+    ControlledValve valveControl(&servo);
 
 // configure adc for poti
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
@@ -151,8 +154,10 @@ while(1){
         ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
                  potiRaw, pressureTarget, pressureNow, pressureDiff);
 
-        // regulate
-        regulateValve(pressureDiff, &servo);
+        // regulate valve pos
+        valveControl.compute(pressureDiff);
+
+        // regulate motor speed
         regulateMotor(pressureDiff, &servo, &motor);
 
         vTaskDelay(250 / portTICK_PERIOD_MS);
