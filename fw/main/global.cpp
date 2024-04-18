@@ -7,7 +7,8 @@ extern "C"
 #include "global.hpp"
 
 // create global pressure sensor on gpio 36
-AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.25, 2.5, 0, 30);
+//FIXME: calibrate ADC and pressure sensor!
+AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
 
 // create global servo object
 servoConfig_t servoConfig{

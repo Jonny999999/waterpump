@@ -34,7 +34,7 @@ float AnalogPressureSensor::adcToBar(int adcValue)
     float voltage = static_cast<float>(adcValue) / 4095.0 * 3.3;
 
     // Convert voltage range (e.g. 0.25V to 2.25V) to pressure range (e.g. 0 to 30 bar)
-    float pressure = (voltage - 0.25) * (30.0 / (2.25 - 0.25));
+    float pressure = (voltage - mMinVoltage) * (mMaxPressure / (mMaxVoltage - mMinVoltage));
 
     ESP_LOGI(TAG, "adc=%d, voltage=%f, pressure=%f", adcValue, voltage, pressure);
     return pressure;

@@ -14,9 +14,9 @@ extern "C"
 // TODO adjust parameters
 // TODO smaller steps
 #define Kp 10     // proportional gain
-#define Ki 0.0001 // integral gain
-#define Kd 0
-#define OFFSET (100 - 20) // 0 fully open, 100 fully closed - idle valve position (expected working point)
+#define Ki 0.005 // integral gain
+#define Kd 1000
+#define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
 #define MAX_INTEGRAL 60   // maximum valve percentage integral term can apply (prevent windup)
 #define MIN_VALVE_MOVE_ANGLE 2
 #define MAX_DT_MS 5000 // prevent bugged action with large time delta at first after several seconds
@@ -175,8 +175,9 @@ void ControlledValve::compute(float pressureDiff)
 #define MIN_SPEED_LEVEL 1
 // TODO: adjust thresholds:
 #define VALVE_PERCENT_TOO_SLOW 5       // speed up when valve below that position and pressure too low
-#define VALVE_PERCENT_TOO_FAST 80      // slow down when valve above that position and pressure too high
-#define CHANGE_SPEED_WAIT_TIMEOUT 3000 // ms threshold speed change conditions have to be met before change is made
+#define VALVE_PERCENT_TOO_FAST 60      // slow down when valve above that position and pressure too high
+#define CHANGE_SPEED_WAIT_TIMEOUT 2500 // ms threshold speed change conditions have to be met before change is made
+#define PRESSURE_TOLERANCE 1 //bar
 void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMotor)
 {
     static int integralSpeedChangePlanned = 0;
@@ -191,13 +192,13 @@ void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMot
 
     // evaluate if speed is too low/high
     // pressure too low but valve already almost compeltely closed => speed up?
-    if (pressureDiff > 0 && pValve->getPercent() < 5 && currentSpeedLevel < MAX_SPEED_LEVEL)
+    if (pressureDiff > -PRESSURE_TOLERANCE && pValve->getPercent() < VALVE_PERCENT_TOO_SLOW && currentSpeedLevel < MAX_SPEED_LEVEL)
     {
         integralSpeedChangePlanned += 1 * dt;
         ESP_LOGD("regulateMotor", "motor seems too slow, incrementing time by %ld to %d", dt, integralSpeedChangePlanned);
     }
     // pressure too high but valve already wide open => slow down?
-    else if (pressureDiff < 0.5 && pValve->getPercent() > 80 && currentSpeedLevel > MIN_SPEED_LEVEL)
+    else if (pressureDiff < PRESSURE_TOLERANCE && pValve->getPercent() > VALVE_PERCENT_TOO_FAST && currentSpeedLevel > MIN_SPEED_LEVEL)
     {
         integralSpeedChangePlanned -= 1 * dt;
         ESP_LOGD("regulateMotor", "motor seems too fast, decrementing time by %ld to %d", dt, integralSpeedChangePlanned);
