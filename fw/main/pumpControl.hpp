@@ -11,20 +11,22 @@ public:
     void setKp(double Kp);
     void setKi(double Ki);
     void setKd(double Kd);
+    void setOffset(double offset);
     void reset(); // reset integral
-    void getCurrentStats(uint32_t *timeLastUpdate, float *p, float *i, float *d, float *valvePos) const;
-    void getCurrentSettings(double *kp, double *ki, double *kd) const;
+    void getCurrentStats(uint32_t *timeLastUpdate, float *pressureDiff, float *p, float *i, float *d, float *valvePos) const;
+    void getCurrentSettings(double *kp, double *ki, double *kd, double *offset) const;
 
 
 private:
     // config
-    double mKp, mKi, mKd;
+    double mKp, mKi, mKd, mOffset;
     ServoMotor *mpValve;
     // variables
     float mProportional, mIntegral, mDerivative, mOutput;
     float mTargetValvePos = 0;
     double mIntegralAccumulator = 0;
     uint32_t mTimestampLastRun = 0;
+    float mPressureDiffLast = 0;
 };
 
 // function that regulates the motor speed depending on pressure and valve pos

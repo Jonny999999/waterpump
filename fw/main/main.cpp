@@ -18,6 +18,7 @@ extern "C"
 #include "servo.hpp"
 #include "pressureSensor.hpp"
 #include "pumpControl.hpp"
+#include "mqtt.hpp"
 
 //tag for logging
 static const char * TAG = "main";
@@ -56,10 +57,6 @@ extern "C" void app_main(void)
     };
     SystemModeController control(controlConfig);
 
-    // create pressure sensor on gpio 36
-    AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.25, 2.5, 0, 30);
-
-
 // configure adc for poti
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
     adc1_config_width(ADC_WIDTH_BIT_12);                  //=> max resolution 4096
@@ -68,6 +65,9 @@ extern "C" void app_main(void)
     // create control task
     // TODO: is this task necessary?
     //xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
+
+    // create mqtt task (repeatedly publish variables)
+    xTaskCreate(&task_mqtt, "task_mqtt", 4096, &control, 5, NULL);
 
     //TODO add tasks "regulate-pressure", "mqtt", ...
 
@@ -156,7 +156,7 @@ while(1){
         // regulate motor speed
         regulateMotor(pressureDiff, &servo, &motor);
 
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(250 / portTICK_PERIOD_MS);
 }
 #endif
 

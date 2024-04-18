@@ -21,6 +21,8 @@ those are planned to be used most of the time in the entire project
   2: exactly once
 */
 
+// task implemented in mqtt.cpp that repeatedly publishes certain data
+void task_mqtt( void * pvParameters );
 
 //--- publish string ---
 //FIXME: string const too? calling the function without a variable (e.g. "asdasd") results in warning: C++ forbids converting a string constant to 'char*'

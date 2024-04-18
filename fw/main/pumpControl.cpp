@@ -31,6 +31,7 @@ ControlledValve::ControlledValve(ServoMotor *pValve)
     mKp = Kp;
     mKi = Ki;
     mKd = Kd;
+    mOffset = OFFSET;
 }
 
 //=====================
@@ -45,20 +46,22 @@ void ControlledValve::reset(){
 //=======================
 //==== get variables ====
 //=======================
-void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *p, float *i, float *d, float *valvePos) const
+void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pressureDiff, float *p, float *i, float *d, float *valvePos) const
 {
     // TODO mutex
+    *timestampLastUpdate = mTimestampLastRun;
+    *pressureDiff = mPressureDiffLast;
     *p = mProportional;
     *i = mIntegral;
     *d = mDerivative;
     *valvePos = mTargetValvePos;
-    *timestampLastUpdate = mTimestampLastRun;
 }
-void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd) const
+void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd, double *offset) const
 {
     *kp = mKp;
     *ki = mKi;
     *kd = mKd;
+    *offset = mOffset;
 }
 
 
@@ -68,17 +71,22 @@ void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd) con
 void ControlledValve::setKp(double KpNew)
 {
     ESP_LOGW("regulateValve", "changing Kp from %lf to %lf", mKp, KpNew);
-    mKp = Kp;
+    mKp = KpNew;
 }
 void ControlledValve::setKi(double KiNew)
 {
     ESP_LOGW("regulateValve", "changing Ki from %lf to %lf", mKi, KiNew);
-    mKi = Ki;
+    mKi = KiNew;
 }
 void ControlledValve::setKd(double KdNew)
 {
     ESP_LOGW("regulateValve", "changing Kp from %lf to %lf", mKd, KdNew);
-    mKd = Kd;
+    mKd = KdNew;
+}
+void ControlledValve::setOffset(double offsetNew)
+{
+    ESP_LOGW("regulateValve", "changing Offset from %lf to %lf", mOffset, offsetNew);
+    mOffset = offsetNew;
 }
 
 
@@ -91,7 +99,6 @@ void ControlledValve::compute(float pressureDiff)
     // variables
     uint32_t dt, timeNow; // in milliseconds
     double dp;
-    static float pressureDiffLast = 0;
 
     // calculate time passed since last run
     timeNow = getMs();
@@ -105,30 +112,30 @@ void ControlledValve::compute(float pressureDiff)
         return;
     }
     // calculate pressure change since last run
-    dp = pressureDiff - pressureDiffLast;
-    pressureDiffLast = pressureDiff;
+    dp = pressureDiff - mPressureDiffLast;
+    mPressureDiffLast = pressureDiff;
 
     // integrate
     mIntegralAccumulator += pressureDiff * dt;
     // limit to max (prevents windup)
-    if (mIntegralAccumulator * Ki > MAX_INTEGRAL)
+    if (mIntegralAccumulator * mKi > MAX_INTEGRAL)
     {
-        mIntegralAccumulator = MAX_INTEGRAL / Ki;
+        mIntegralAccumulator = MAX_INTEGRAL / mKi;
     }
-    else if (mIntegralAccumulator * Ki < -MAX_INTEGRAL)
+    else if (mIntegralAccumulator * mKi < -MAX_INTEGRAL)
     {
-        mIntegralAccumulator = -MAX_INTEGRAL / Ki;
+        mIntegralAccumulator = -MAX_INTEGRAL / mKi;
     }
 
     // --- integral term ---
-    mIntegral = Ki * mIntegralAccumulator;
+    mIntegral = mKi * mIntegralAccumulator;
     // --- proportional term ---
-    mProportional = Kp * pressureDiff;
+    mProportional = mKp * pressureDiff;
     // --- derivative term ---
-    mDerivative = Kd * dp / dt;
+    mDerivative = mKd * dp / dt;
     // calculate total output
     // note: output positive = pressure too low -> valve has to close -> reduce pos
-    mOutput = OFFSET + mProportional + mIntegral + mDerivative;
+    mOutput = mOffset + mProportional + mIntegral + mDerivative;
 
     // define new valve position
     float oldPos = mpValve->getPercent();

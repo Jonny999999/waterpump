@@ -144,6 +144,7 @@ void mqtt_app_start(void)
     //set loglevel
     esp_log_level_set("MQTT_CLIENT", MQTT_LOGLEVEL);
     esp_log_level_set("MQTT", MQTT_LOGLEVEL);
+    esp_log_level_set("MQTT_cpp", MQTT_LOGLEVEL);
     esp_log_level_set("TRANSPORT_BASE", MQTT_LOGLEVEL);
     esp_log_level_set("esp-tls", MQTT_LOGLEVEL);
     esp_log_level_set("TRANSPORT", MQTT_LOGLEVEL);

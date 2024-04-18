@@ -15,6 +15,49 @@ extern "C"{
 #include "global.hpp"
 #include "mqtt.hpp"
 
+#include <cJSON.h>
+
+//=====================
+//===== task_mqtt =====
+//=====================
+// repeatedly publish variables when connected
+#define PUBLISH_INTERVAL 500
+void task_mqtt(void *pvParameters)
+{
+    static const char *TAG = "mqtt-task";
+    while (1)
+    {
+        // dont do anything when not connected
+        if (!mqtt_getConnectedState())
+        {
+            ESP_LOGW(TAG, "not connected to broker, waiting...");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            continue;
+        }
+        // ESP_LOGI(TAG, "publishing values");
+
+        //--- publish current pressure ---
+        mqtt_publish(pressureSensor.readBar(), "waterpump/pressure", 0);
+
+        //--- publish valve control stats ---
+        float pressureDiff, p, i, d, valve;
+        uint32_t time;
+        // get current stats from object
+        valveControl.getCurrentStats(&time, &pressureDiff, &p, &i, &d, &valve);
+        // create json object
+        cJSON *jsonObj = cJSON_CreateObject();
+        cJSON_AddNumberToObject(jsonObj, "timestamp", time);
+        cJSON_AddNumberToObject(jsonObj, "pressureDiff", pressureDiff);
+        cJSON_AddNumberToObject(jsonObj, "p", p);
+        cJSON_AddNumberToObject(jsonObj, "i", i);
+        cJSON_AddNumberToObject(jsonObj, "d", d);
+        cJSON_AddNumberToObject(jsonObj, "valvePer", valve);
+        // publish json object
+        mqtt_publish(cJSON_Print(jsonObj), "waterpump/valve/pidStats", 0);
+
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+}
 
 //===========================================
 //===== functions for SUBSCRIBED TOPICS =====
@@ -62,6 +105,12 @@ void handleTopicValveSetKd(char * data, int len) {
     if (!cStrToFloat(data, len, &value))
     valveControl.setKd(value);
 }
+void handleTopicValveSetOffset(char * data, int len) {
+    double value;
+    // convert data to float and assign to Kd if successfull
+    if (!cStrToFloat(data, len, &value))
+    valveControl.setOffset(value);
+}
 
 
 //=================================
@@ -89,6 +138,13 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         0,
         handleTopicValveSetKd //function from circulation.hpp
+    },
+    {
+        "valve set Offset",
+        "waterpump/valve/setOffset",
+        0,
+        0,
+        handleTopicValveSetOffset //function from circulation.hpp
     },
 };
 size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt_subscribedTopic_t);
