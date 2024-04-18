@@ -1,4 +1,10 @@
+// include config section not tracked in repo
+// show message when file is not manually created yet
+#if __has_include("credentials.h")
 #include "credentials.h"
+#else
+#error [=== FILE 'credentials.h' MISSING! ===] => Copy and customize 'credentials.default.h' first!
+#endif
 
 // mqtt:
 #define MQTT_BROKER_URL     "mqtt://10.0.0.102:1883"

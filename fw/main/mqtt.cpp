@@ -54,8 +54,10 @@ void task_mqtt(void *pvParameters)
         cJSON_AddNumberToObject(jsonObj, "valvePer", valve);
         // publish json object
         mqtt_publish(cJSON_Print(jsonObj), "waterpump/valve/pidStats", 0);
+        // free memory
+        cJSON_Delete(jsonObj);
 
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(PUBLISH_INTERVAL / portTICK_PERIOD_MS);
     }
 }
 
@@ -111,6 +113,9 @@ void handleTopicValveSetOffset(char * data, int len) {
     if (!cStrToFloat(data, len, &value))
     valveControl.setOffset(value);
 }
+void handleTopicValveReset(char * data, int len) {
+    valveControl.reset();
+}
 
 
 //=================================
@@ -145,6 +150,13 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         0,
         handleTopicValveSetOffset //function from circulation.hpp
+    },
+    {
+        "valve reset",
+        "waterpump/valve/reset",
+        0,
+        0,
+        handleTopicValveReset
     },
 };
 size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt_subscribedTopic_t);

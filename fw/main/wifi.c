@@ -34,10 +34,10 @@ Configuration from credentials.h:
 #define STATIC_GW_ADDR      "10.0.0.1"
 #define MAIN_DNS_SERVER     "10.0.0.1"
 #define BACKUP_DNS_SERVER   "8.8.8.8"
+#define WIFI_LOGLEVEL ESP_LOG_INFO
 */
 
 #define WIFI_MAXIMUM_RETRY  0
-#define WIFI_LOGLEVEL ESP_LOG_INFO
 
 static const char *TAG = "wifi";
 
