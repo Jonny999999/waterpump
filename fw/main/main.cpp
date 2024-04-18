@@ -6,9 +6,13 @@ extern "C"
 
 #include "esp_log.h"
 #include "driver/adc.h"
+
+#include "wifi.h"
+#include "mqtt.h"
 }
 
 #include <stdio.h>
+#include "global.hpp"
 #include "vfd.hpp"
 #include "mode.hpp"
 #include "servo.hpp"
@@ -32,23 +36,17 @@ extern "C" void app_main(void)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_17, 1);
 
+    // connect wifi
+    wifi_connect();
+
+    // connect mqtt
+    mqtt_app_start();
+
     // create motor object
     Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, true);
 
-    // create servo object
-    servoConfig_t servoConfig {
-        .gpioPwmSignal = 27,
-        .gpioEnablePower = 13, // onboard realy
-        .powerEnableRequired = true, // require enable() call to turn above pin on
-        .ratedAngle = 180,
-        // Coupling V1: 17 to 87 (no play)
-        // Coupling V2: 11 to 89 deg 
-        .minAllowedAngle = 17, // valve completely closed
-        .maxAllowedAngle = 87, // valve completely open
-        .invertDirection = true
-    };
-    ServoMotor servo(servoConfig);
-    servo.enable(); // turn servo power supply on (onboard relay)
+    // turn servo power supply on (onboard relay)
+    servo.enable(); 
 
     // create control object
     controlConfig_t controlConfig{
@@ -61,8 +59,6 @@ extern "C" void app_main(void)
     // create pressure sensor on gpio 36
     AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.25, 2.5, 0, 30);
 
-    // create controlled valve object that regulates the valve position
-    ControlledValve valveControl(&servo);
 
 // configure adc for poti
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
@@ -160,7 +156,7 @@ while(1){
         // regulate motor speed
         regulateMotor(pressureDiff, &servo, &motor);
 
-        vTaskDelay(250 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 #endif
 

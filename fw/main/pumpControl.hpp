@@ -8,12 +8,12 @@ class ControlledValve
 public:
     ControlledValve(ServoMotor *pValve);
     void compute(float pressureDiff); // calculate and move valve to new position
-    void setKp(float Kp);
-    void setKi(float Ki);
-    void setKd(float Kd);
+    void setKp(double Kp);
+    void setKi(double Ki);
+    void setKd(double Kd);
     void reset(); // reset integral
     void getCurrentStats(uint32_t *timeLastUpdate, float *p, float *i, float *d, float *valvePos) const;
-    void getCurrentSettings(float *kp, float *ki, float *kd) const;
+    void getCurrentSettings(double *kp, double *ki, double *kd) const;
 
 
 private:

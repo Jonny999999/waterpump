@@ -54,12 +54,33 @@ void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *p, f
     *valvePos = mTargetValvePos;
     *timestampLastUpdate = mTimestampLastRun;
 }
-void ControlledValve::getCurrentSettings(float *kp, float *ki, float *kd) const
+void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd) const
 {
     *kp = mKp;
     *ki = mKi;
     *kd = mKd;
 }
+
+
+//=======================
+//==== set variables ====
+//=======================
+void ControlledValve::setKp(double KpNew)
+{
+    ESP_LOGW("regulateValve", "changing Kp from %lf to %lf", mKp, KpNew);
+    mKp = Kp;
+}
+void ControlledValve::setKi(double KiNew)
+{
+    ESP_LOGW("regulateValve", "changing Ki from %lf to %lf", mKi, KiNew);
+    mKi = Ki;
+}
+void ControlledValve::setKd(double KdNew)
+{
+    ESP_LOGW("regulateValve", "changing Kp from %lf to %lf", mKd, KdNew);
+    mKd = Kd;
+}
+
 
 //===================================
 //==== ControlledValve compute() ====
