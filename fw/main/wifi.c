@@ -99,6 +99,7 @@ static void set_static_ip(esp_netif_t *netif)
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
+    ESP_LOGI(TAG, "free Heap:%ld,%d", esp_get_free_heap_size(), heap_caps_get_free_size(MALLOC_CAP_8BIT));
     ESP_LOGW(TAG, "Eventhandler: handling event: %ld", event_id);
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
@@ -196,6 +197,10 @@ void wifi_connect()
 {
     esp_log_level_set("wifi", WIFI_LOGLEVEL);
     esp_log_level_set("wifi_init", WIFI_LOGLEVEL);
+
+    ////disable wifi powersave feature (to potentionally fix connection loss after 10 minutes)
+    //wifi_ps_type_t psType = WIFI_PS_NONE;
+    //esp_wifi_set_ps(psType);
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();

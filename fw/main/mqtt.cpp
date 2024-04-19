@@ -27,6 +27,9 @@ void task_mqtt(void *pvParameters)
     static const char *TAG = "mqtt-task";
     while (1)
     {
+        // debug: log memory stats
+        ESP_LOGD(TAG, "free Heap:%ld,%d", esp_get_free_heap_size(), heap_caps_get_free_size(MALLOC_CAP_8BIT));
+
         // dont do anything when not connected
         if (!mqtt_getConnectedState())
         {
@@ -44,6 +47,15 @@ void task_mqtt(void *pvParameters)
         uint32_t time;
         // get current stats from object
         valveControl.getCurrentStats(&time, &pressureDiff, &p, &i, &d, &valve);
+
+        //publish values one by one
+        mqtt_publish(pressureDiff ,"waterpump/valve/pidStats/pressureDiff", 0);
+        mqtt_publish(valve,"waterpump/valve/valvePer", 0);
+        mqtt_publish(p,"waterpump/valve/pidStats/p", 0);
+        mqtt_publish(i,"waterpump/valve/pidStats/i", 0);
+        mqtt_publish(d,"waterpump/valve/pidStats/d", 0);
+
+        /*  publish all at once using json object (publish causes memoryleak)
         // create json object
         cJSON *jsonObj = cJSON_CreateObject();
         cJSON_AddNumberToObject(jsonObj, "timestamp", time);
@@ -53,9 +65,11 @@ void task_mqtt(void *pvParameters)
         cJSON_AddNumberToObject(jsonObj, "d", d);
         cJSON_AddNumberToObject(jsonObj, "valvePer", valve);
         // publish json object
+        // TODO: this publish causes memory leak by 100bytes each run (it supposedly clears again after some minutes according to forum)
         mqtt_publish(cJSON_Print(jsonObj), "waterpump/valve/pidStats", 0);
         // free memory
         cJSON_Delete(jsonObj);
+        */
 
         vTaskDelay(PUBLISH_INTERVAL / portTICK_PERIOD_MS);
     }
