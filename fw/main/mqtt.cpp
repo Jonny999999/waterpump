@@ -43,13 +43,14 @@ void task_mqtt(void *pvParameters)
         mqtt_publish(pressureSensor.readBar(), "waterpump/pressure", 0);
 
         //--- publish valve control stats ---
-        float pressureDiff, p, i, d, valve;
+        float pressureDiff, targetPressure, p, i, d, valve;
         uint32_t time;
         // get current stats from object
-        valveControl.getCurrentStats(&time, &pressureDiff, &p, &i, &d, &valve);
+        valveControl.getCurrentStats(&time, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
 
         //publish values one by one
         mqtt_publish(pressureDiff ,"waterpump/valve/pidStats/pressureDiff", 0);
+        mqtt_publish(targetPressure ,"waterpump/valve/pidStats/targetPressure", 0);
         mqtt_publish(valve,"waterpump/valve/valvePer", 0);
         mqtt_publish(p,"waterpump/valve/pidStats/p", 0);
         mqtt_publish(i,"waterpump/valve/pidStats/i", 0);

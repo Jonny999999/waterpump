@@ -12,8 +12,9 @@ public:
     void setKi(double Ki);
     void setKd(double Kd);
     void setOffset(double offset);
+    void setTargetPressure(float target){mTargetPressure = target;};
     void reset(); // reset integral
-    void getCurrentStats(uint32_t *timeLastUpdate, float *pressureDiff, float *p, float *i, float *d, float *valvePos) const;
+    void getCurrentStats(uint32_t *timeLastUpdate, float *pressureDiff, float *targetPressure, float *p, float *i, float *d, float *valvePos) const;
     void getCurrentSettings(double *kp, double *ki, double *kd, double *offset) const;
 
 
@@ -27,6 +28,7 @@ private:
     double mIntegralAccumulator = 0;
     uint32_t mTimestampLastRun = 0;
     float mPressureDiffLast = 0;
+    float mTargetPressure = 0;
 };
 
 // function that regulates the motor speed depending on pressure and valve pos

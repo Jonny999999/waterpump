@@ -17,7 +17,10 @@ extern "C"
 #define Ki 0.005 // integral gain
 #define Kd 1000
 #define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
-#define MAX_INTEGRAL 60   // maximum valve percentage integral term can apply (prevent windup)
+#define MAX_INTEGRAL_RANGE_MULTIPLIER 1  // scale maximum percentage integral term can apply to valve
+// 1 means: with integral value alone valve can reach 0 and 100 
+// >1 means: integral can overshoot (danger of windup)
+// <0 means: integral can not influence the result that much
 #define MIN_VALVE_MOVE_ANGLE 2
 #define MAX_DT_MS 5000 // prevent bugged action with large time delta at first after several seconds
 
@@ -46,11 +49,12 @@ void ControlledValve::reset(){
 //=======================
 //==== get variables ====
 //=======================
-void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pressureDiff, float *p, float *i, float *d, float *valvePos) const
+void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pressureDiff, float * targetPressure, float *p, float *i, float *d, float *valvePos) const
 {
     // TODO mutex
     *timestampLastUpdate = mTimestampLastRun;
     *pressureDiff = mPressureDiffLast;
+    *targetPressure = mTargetPressure;
     *p = mProportional;
     *i = mIntegral;
     *d = mDerivative;
@@ -118,13 +122,16 @@ void ControlledValve::compute(float pressureDiff)
     // integrate
     mIntegralAccumulator += pressureDiff * dt;
     // limit to max (prevents windup)
-    if (mIntegralAccumulator * mKi > MAX_INTEGRAL)
+    // calculate integral limits depending on offset TODO: do this on offset change only
+    float maxIntegral = (100-mOffset) * MAX_INTEGRAL_RANGE_MULTIPLIER;
+    float minIntegral = (-mOffset) * MAX_INTEGRAL_RANGE_MULTIPLIER;
+    if (mIntegralAccumulator * mKi > maxIntegral)
     {
-        mIntegralAccumulator = MAX_INTEGRAL / mKi;
+        mIntegralAccumulator = maxIntegral / mKi;
     }
-    else if (mIntegralAccumulator * mKi < -MAX_INTEGRAL)
+    else if (mIntegralAccumulator * mKi < minIntegral)
     {
-        mIntegralAccumulator = -MAX_INTEGRAL / mKi;
+        mIntegralAccumulator = minIntegral / mKi;
     }
 
     // --- integral term ---
