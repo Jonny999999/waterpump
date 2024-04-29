@@ -98,17 +98,19 @@ void ControlledValve::setOffset(double offsetNew)
 //==== ControlledValve compute() ====
 //===================================
 // calculate and move valve to new position
-void ControlledValve::compute(float pressureDiff)
+void ControlledValve::compute(float pressureNow)
 {
     // variables
     uint32_t dt, timeNow; // in milliseconds
     double dp;
 
+    // calculate pressure difference
+    float pressureDiff = mTargetPressure - pressureNow;
     // calculate time passed since last run
     timeNow = getMs();
     dt = timeNow - mTimestampLastRun;
     mTimestampLastRun = timeNow;
-    // ignore run with very large dt (probably first run of method since startup)
+    // ignore run with very large dt (probably first run of method since startup) to prevent huge integral step
     if (dt > MAX_DT_MS)
     {
         dt = 0;

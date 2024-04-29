@@ -7,7 +7,7 @@ class ControlledValve
 {
 public:
     ControlledValve(ServoMotor *pValve);
-    void compute(float pressureDiff); // calculate and move valve to new position
+    void compute(float pressureNow); // calculate and move valve to new position
     void setKp(double Kp);
     void setKi(double Ki);
     void setKd(double Kd);

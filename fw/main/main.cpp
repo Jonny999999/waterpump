@@ -30,8 +30,9 @@ extern "C" void app_main(void)
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
-    esp_log_level_set("regulateValve", ESP_LOG_DEBUG);
-    esp_log_level_set("reulateMotor", ESP_LOG_DEBUG);
+    esp_log_level_set("regulateValve", ESP_LOG_WARN);
+    esp_log_level_set("regulateMotor", ESP_LOG_INFO);
+    esp_log_level_set("mqtt-task", ESP_LOG_WARN);
 
     //enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
@@ -67,7 +68,7 @@ extern "C" void app_main(void)
     //xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
 
     // create mqtt task (repeatedly publish variables)
-    xTaskCreate(&task_mqtt, "task_mqtt", 4096, &control, 5, NULL);
+    xTaskCreate(&task_mqtt, "task_mqtt", 4096*4, &control, 5, NULL);
 
     //TODO add tasks "regulate-pressure", "mqtt", ...
 
@@ -150,8 +151,10 @@ while(1){
         ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
                  potiRaw, pressureTarget, pressureNow, pressureDiff);
 
+        // TODO only update target on button press
+        valveControl.setTargetPressure(pressureTarget);
         // regulate valve pos
-        valveControl.compute(pressureDiff);
+        valveControl.compute(pressureNow);
 
         // regulate motor speed
         regulateMotor(pressureDiff, &servo, &motor);
