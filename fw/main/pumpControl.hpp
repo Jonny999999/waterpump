@@ -15,6 +15,8 @@ public:
     void setTargetPressure(float target){mTargetPressure = target;};
     void reset(); // reset integral
     void getCurrentStats(uint32_t *timeLastUpdate, float *pressureDiff, float *targetPressure, float *p, float *i, float *d, float *valvePos) const;
+    float getPressureDiff() const {return mPressureDiffLast;};
+    float getTargetPressure() const {return mTargetPressure;};
     void getCurrentSettings(double *kp, double *ki, double *kd, double *offset) const;
 
 

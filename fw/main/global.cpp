@@ -6,6 +6,16 @@ extern "C"
 
 #include "global.hpp"
 
+#define ADC_POTI ADC1_CHANNEL_6 //gpio34
+// create global control object (handles Button/Poti input and system mode)
+controlConfig_t controlConfig{
+    .defaultMode = IDLE,
+    .gpioSetButton = GPIO_NUM_11,
+    .gpioModeButton = GPIO_NUM_25,
+    .gpioStatusLed = GPIO_NUM_10,
+    .adcChannelPoti = ADC_POTI};
+SystemModeController control(controlConfig);
+
 // create global pressure sensor on gpio 36
 //FIXME: calibrate ADC and pressure sensor!
 AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);

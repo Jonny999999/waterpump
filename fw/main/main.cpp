@@ -34,7 +34,7 @@ extern "C" void app_main(void)
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
 
-    //enable 5V volage regulator (needed for pressure sensor and flow meter)
+    // enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_17, 1);
 
@@ -48,34 +48,20 @@ extern "C" void app_main(void)
     Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, true);
 
     // turn servo power supply on (onboard relay)
-    servo.enable(); 
+    servo.enable();
 
-    // create control object
-    controlConfig_t controlConfig{
-        .defaultMode = IDLE,
-        .gpioSetButton = GPIO_NUM_11,
-        .gpioStatusLed = GPIO_NUM_10
-    };
-    SystemModeController control(controlConfig);
-
-// configure adc for poti
-#define ADC_POTI ADC1_CHANNEL_6 //gpio34
-    adc1_config_width(ADC_WIDTH_BIT_12);                  //=> max resolution 4096
-    adc1_config_channel_atten(ADC_POTI, ADC_ATTEN_DB_11); //max voltage
-
-    // create control task
-    // TODO: is this task necessary?
-    //xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
+    // create control task (handle Buttons, Poti and define System-mode)
+    xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL); // implemented in mode.cpp
 
     // create mqtt task (repeatedly publish variables)
-    xTaskCreate(&task_mqtt, "task_mqtt", 4096*4, &control, 5, NULL);
+    xTaskCreate(&task_mqtt, "task_mqtt", 4096 * 4, &control, 5, NULL); // implemented in mqtt.cpp
 
-    //TODO add tasks "regulate-pressure", "mqtt", ...
+    // TODO add tasks "regulate-pressure", "mqtt", ...
 
     //===== TESTING =====
 
 //--- test vfd ---
-//#define VFD_TEST
+// #define VFD_TEST
 #ifdef VFD_TEST
     // test on/off
     motor.turnOn();
@@ -106,63 +92,68 @@ extern "C" void app_main(void)
     }
 #endif
 
-
-
-
 // --- test poti, servo, pressure-sensor ---
-//#define SERVO_TEST
+// #define SERVO_TEST
 #ifdef SERVO_TEST
-while(1){
-    // test pressure sensor
-    pressureSensor.readBar();
-
-    // read poti
-    int potiRaw = adc1_get_raw(ADC_POTI);
-    float potiPercent = (float)potiRaw/4095*100;
-    ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
-
-    // apply poti to servo
-    servo.setPercentage(potiPercent);
-    //servo.setAngle(180*potiPercent/100);
-
-    vTaskDelay(100 / portTICK_PERIOD_MS);
-}
-#endif
-
-//--- test pressure regulation ---
-#define REGULATION_TEST
-#ifdef REGULATION_TEST
-#define MAX_PRESSURE 8
-    // turn on at startup
-    motor.turnOn();
     while (1)
     {
-        // TODO add timeouts
-        //  read poti
+        // test pressure sensor
+        pressureSensor.readBar();
+
+        // read poti
         int potiRaw = adc1_get_raw(ADC_POTI);
         float potiPercent = (float)potiRaw / 4095 * 100;
-        // define target pressure
-        float pressureTarget = potiPercent * MAX_PRESSURE / 100;
-        // read pressure
-        float pressureNow = pressureSensor.readBar();
-        // calcuate difference (positive = too low,  negative = too high)
-        float pressureDiff = pressureTarget - pressureNow;
+        ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
 
-        ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
-                 potiRaw, pressureTarget, pressureNow, pressureDiff);
+        // apply poti to servo
+        servo.setPercentage(potiPercent);
+        // servo.setAngle(180*potiPercent/100);
 
-        // TODO only update target on button press
-        valveControl.setTargetPressure(pressureTarget);
-        // regulate valve pos
-        valveControl.compute(pressureNow);
-
-        // regulate motor speed
-        regulateMotor(pressureDiff, &servo, &motor);
-
-        vTaskDelay(250 / portTICK_PERIOD_MS);
-}
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
 #endif
 
+
+
+    // repeately run actions depending on current system mode
+    controlMode_t modeNow = IDLE;
+    controlMode_t modePrev = IDLE;
+    while (1)
+    {
+        // get current and store previous mode
+        modePrev = modeNow;
+        modeNow = control.getMode();
+
+        // run actions depending on current mode
+        switch (modeNow)
+        {
+        case REGULATE_PRESSURE:
+            // initially turn on motor
+            if (modePrev != REGULATE_PRESSURE)
+            {
+                ESP_LOGW(TAG, "changed to REGULATE_PRESSURE -> enable motor");
+                motor.turnOn();
+            }
+            // regulate valve pos
+            valveControl.compute(pressureSensor.readBar());
+            // regulate motor speed
+            regulateMotor(valveControl.getPressureDiff(), &servo, &motor);
+            break;
+
+        default:
+            // turn motor off when previously in regulate mode
+            if (modePrev == REGULATE_PRESSURE)
+            {
+                ESP_LOGW(TAG, "changed from REGULATE_PRESSURE -> disable motor, close valve");
+                motor.turnOff();
+                servo.setPercentage(0);
+                valveControl.reset(); // reset regulator
+            }
+            break;
+        }
+
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+    }
 
     while (1)
     {
