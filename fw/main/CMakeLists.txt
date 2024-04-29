@@ -5,6 +5,11 @@ idf_component_register(
         "vfd.cpp"
         "servo.cpp"
         "pressureSensor.cpp"
+        "pumpControl.cpp"
+        "wifi.c"
+        "mqtt.c"
+        "mqtt.cpp"
+        "global.cpp"
     INCLUDE_DIRS 
         "."
     )

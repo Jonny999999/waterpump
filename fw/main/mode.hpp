@@ -33,6 +33,7 @@ public:
     SystemModeController(controlConfig_t config);
     void handle();
     void changeMode(controlMode_t newMode);
+    controlMode_t getMode() const {return mMode;};
 
 private:
     controlConfig_t mConfig;

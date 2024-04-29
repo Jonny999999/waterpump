@@ -34,5 +34,5 @@ private:
     bool mInvertSpeedBits = false;
 
     // variables
-    uint8_t mSpeedLevel = 0;
+    uint8_t mSpeedLevel = 1;
 };

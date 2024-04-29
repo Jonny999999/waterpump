@@ -6,14 +6,19 @@ extern "C"
 
 #include "esp_log.h"
 #include "driver/adc.h"
+
+#include "wifi.h"
+#include "mqtt.h"
 }
 
 #include <stdio.h>
+#include "global.hpp"
 #include "vfd.hpp"
 #include "mode.hpp"
 #include "servo.hpp"
 #include "pressureSensor.hpp"
-#include "pump.hpp"
+#include "pumpControl.hpp"
+#include "mqtt.hpp"
 
 //tag for logging
 static const char * TAG = "main";
@@ -25,30 +30,25 @@ extern "C" void app_main(void)
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
-    esp_log_level_set("regulateValve", ESP_LOG_DEBUG);
-    esp_log_level_set("reulateMotor", ESP_LOG_DEBUG);
+    esp_log_level_set("regulateValve", ESP_LOG_WARN);
+    esp_log_level_set("regulateMotor", ESP_LOG_INFO);
+    esp_log_level_set("mqtt-task", ESP_LOG_WARN);
 
     //enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_17, 1);
 
+    // connect wifi
+    wifi_connect();
+
+    // connect mqtt
+    mqtt_app_start();
+
     // create motor object
     Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, true);
 
-    // create servo object
-    servoConfig_t servoConfig {
-        .gpioPwmSignal = 27,
-        .gpioEnablePower = 13, // onboard realy
-        .powerEnableRequired = true, // require enable() call to turn above pin on
-        .ratedAngle = 180,
-        // Coupling V1: 17 to 87 (no play)
-        // Coupling V2: 11 to 89 deg 
-        .minAllowedAngle = 17, // valve completely closed
-        .maxAllowedAngle = 87, // valve completely open
-        .invertDirection = true
-    };
-    ServoMotor servo(servoConfig);
-    servo.enable(); // turn servo power supply on (onboard relay)
+    // turn servo power supply on (onboard relay)
+    servo.enable(); 
 
     // create control object
     controlConfig_t controlConfig{
@@ -58,9 +58,6 @@ extern "C" void app_main(void)
     };
     SystemModeController control(controlConfig);
 
-    // create pressure sensor on gpio 36
-    AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.25, 2.5, 0, 30);
-
 // configure adc for poti
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
     adc1_config_width(ADC_WIDTH_BIT_12);                  //=> max resolution 4096
@@ -69,6 +66,9 @@ extern "C" void app_main(void)
     // create control task
     // TODO: is this task necessary?
     //xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL);
+
+    // create mqtt task (repeatedly publish variables)
+    xTaskCreate(&task_mqtt, "task_mqtt", 4096*4, &control, 5, NULL);
 
     //TODO add tasks "regulate-pressure", "mqtt", ...
 
@@ -145,13 +145,18 @@ while(1){
         float pressureTarget = potiPercent * MAX_PRESSURE / 100;
         // read pressure
         float pressureNow = pressureSensor.readBar();
-        float pressureDiff = pressureNow - pressureTarget;
+        // calcuate difference (positive = too low,  negative = too high)
+        float pressureDiff = pressureTarget - pressureNow;
 
         ESP_LOGI(TAG, "poti=%d, pTarget=%.2fbar, pNow=%.2fbar, diff=%.2f",
                  potiRaw, pressureTarget, pressureNow, pressureDiff);
 
-        // regulate
-        regulateValve(pressureDiff, &servo);
+        // TODO only update target on button press
+        valveControl.setTargetPressure(pressureTarget);
+        // regulate valve pos
+        valveControl.compute(pressureNow);
+
+        // regulate motor speed
         regulateMotor(pressureDiff, &servo, &motor);
 
         vTaskDelay(250 / portTICK_PERIOD_MS);

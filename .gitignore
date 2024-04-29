@@ -12,6 +12,7 @@ dependencies.lock
 
 # VS-code
 settings.json
+.vscode/
 
 
 # drawio
@@ -23,3 +24,7 @@ settings.json
 
 # other
 octave-workspace
+
+
+# project
+credentials.h
