@@ -12,6 +12,15 @@ extern "C"
 #define DEFAULT_TARGET_PRESSURE 4
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
 
+const float lookupPSensor[][2] = {
+    //FIXME populate this table with actual measurements
+    //ADC, bar
+    {10, 1},
+    {1234, 4.1},
+    {1234, 4.1}
+    //{, },
+};
+
 
 //======================
 //=== global objects ===
@@ -26,8 +35,8 @@ controlConfig_t controlConfig{
 SystemModeController control(controlConfig);
 
 // create global pressure sensor on gpio 36
-//FIXME: calibrate ADC and pressure sensor!
-AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
+//AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
+AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]));
 
 // create global servo object
 servoConfig_t servoConfig{

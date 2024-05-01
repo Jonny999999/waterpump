@@ -33,6 +33,7 @@ extern "C" void app_main(void)
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
+    esp_log_level_set("lookupTable", ESP_LOG_VERBOSE);
 
     // enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
