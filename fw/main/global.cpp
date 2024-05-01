@@ -12,14 +12,39 @@ extern "C"
 #define DEFAULT_TARGET_PRESSURE 4
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
 
+//lookup table for 5V 30bar pressure sensor (measured 2024.05.01)
 const float lookupPSensor[][2] = {
-    //FIXME populate this table with actual measurements
-    //ADC, bar
-    {10, 1},
-    {1234, 4.1},
-    {1234, 4.1}
-    //{, },
+    // ADC, bar
+    {139, 0},
+    {188, 0.5},
+    {208, 1},
+    {220, 1.25},
+    {240, 1.5}, // very linear after this point
+    {260, 1.75},
+    {279, 2},
+    {295, 2.25},
+    {310, 2.5},
+    {330, 2.75},
+    {349, 3},
+    {383, 3.5},
+    {420, 4},
+    {451, 4.5},
+    {483, 5},
+    {525, 5.5},
+    {559, 6},
+    {590, 6.5},
+    {624, 7},
+    {656, 7.5},
+    {693, 8},
+    {723, 8.5},
+
+    // x1=349  y1=3
+    // x2=723 y2=8.5
+    // p = (5.5/374)*adc - 2.1323529
+
+    {4095, 58} //extrapolated to max adc value
 };
+
 
 
 //======================

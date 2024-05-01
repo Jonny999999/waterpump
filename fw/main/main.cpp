@@ -30,10 +30,11 @@ extern "C" void app_main(void)
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
+    esp_log_level_set("pressure", ESP_LOG_INFO);
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
-    esp_log_level_set("lookupTable", ESP_LOG_VERBOSE);
+    esp_log_level_set("lookupTable", ESP_LOG_WARN);
 
     // enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
@@ -114,7 +115,14 @@ extern "C" void app_main(void)
     }
 #endif
 
-
+#ifdef CALIBRATE_PRESSURE_SENSOR
+    // repeatedly read pressure sensor to manually create lookup table measurements
+    while (1)
+    {
+        pressureSensor.read();
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+    }
+#endif
 
     // repeately run actions depending on current system mode
     controlMode_t modeNow = IDLE;
