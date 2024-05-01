@@ -30,8 +30,8 @@ void task_control(void *pvParameters)
 //=== constructor ===
 //===================
 SystemModeController::SystemModeController(controlConfig_t config)
-    : mButtonMode(config.gpioModeButton, false, false),
-      mButtonSet(config.gpioSetButton, false, false)
+    : mButtonMode(config.gpioModeButton, false, true), // pullup=false, inverted=true (swith to 3v3, pulldown soldered)
+      mButtonSet(config.gpioSetButton, false, true)
 {
     ESP_LOGW(TAG, "Initializing SystemModeController");
     // copy config and objects, set defaults

@@ -132,7 +132,7 @@ extern "C" void app_main(void)
             if (modePrev != REGULATE_PRESSURE)
             {
                 ESP_LOGW(TAG, "changed to REGULATE_PRESSURE -> enable motor");
-                motor.turnOn();
+                motor.turnOn(2); // start motor at medium speed
             }
             // regulate valve pos
             valveControl.compute(pressureSensor.readBar());

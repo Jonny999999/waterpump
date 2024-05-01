@@ -27,7 +27,7 @@ extern "C"
 //=================================
 //== ControlledValve Constructor ==
 //=================================
-ControlledValve::ControlledValve(ServoMotor *pValve)
+ControlledValve::ControlledValve(ServoMotor *pValve, float defaultTargetPressure)
 {
     // copy pointer and config values
     mpValve = pValve;
@@ -35,6 +35,8 @@ ControlledValve::ControlledValve(ServoMotor *pValve)
     mKi = Ki;
     mKd = Kd;
     mOffset = OFFSET;
+
+    mTargetPressure = defaultTargetPressure;
 }
 
 //=====================

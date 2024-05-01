@@ -21,7 +21,8 @@ extern "C"{
 //===== task_mqtt =====
 //=====================
 // repeatedly publish variables when connected
-#define PUBLISH_INTERVAL 500
+#define PUBLISH_INTERVAL_RUNNING 500
+#define PUBLISH_INTERVAL_IDLE 3000
 void task_mqtt(void *pvParameters)
 {
     static const char *TAG = "mqtt-task";
@@ -72,7 +73,15 @@ void task_mqtt(void *pvParameters)
         cJSON_Delete(jsonObj);
         */
 
-        vTaskDelay(PUBLISH_INTERVAL / portTICK_PERIOD_MS);
+       // publish less frequently when in IDLE mode
+        if (control.getMode() == controlMode_t::IDLE)
+        {
+            vTaskDelay(PUBLISH_INTERVAL_IDLE / portTICK_PERIOD_MS);
+        }
+        else
+        {
+            vTaskDelay(PUBLISH_INTERVAL_RUNNING / portTICK_PERIOD_MS);
+        }
     }
 }
 

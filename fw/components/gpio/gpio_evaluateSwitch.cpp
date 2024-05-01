@@ -42,7 +42,7 @@ gpio_evaluatedSwitch::gpio_evaluatedSwitch( //with function as input source
 
 
 void gpio_evaluatedSwitch::initGpio(){
-    ESP_LOGI(TAG, "initializing gpio pin %d", (int)gpio_num);
+    ESP_LOGW(TAG, "initializing gpio pin %d (note: if stuck verify pin is usable as output)", (int)gpio_num);
 
     //define gpio pin as input
     esp_rom_gpio_pad_select_gpio(gpio_num);

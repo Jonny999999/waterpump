@@ -3,14 +3,23 @@ extern "C"
 #include "driver/gpio.h"
 #include "driver/adc.h"
 }
-
 #include "global.hpp"
 
+
+//================
+//==== config ====
+//================
+#define DEFAULT_TARGET_PRESSURE 4
 #define ADC_POTI ADC1_CHANNEL_6 //gpio34
+
+
+//======================
+//=== global objects ===
+//======================
 // create global control object (handles Button/Poti input and system mode)
 controlConfig_t controlConfig{
     .defaultMode = IDLE,
-    .gpioSetButton = GPIO_NUM_11,
+    .gpioSetButton = GPIO_NUM_33,
     .gpioModeButton = GPIO_NUM_25,
     .gpioStatusLed = GPIO_NUM_10,
     .adcChannelPoti = ADC_POTI};
@@ -34,4 +43,4 @@ servoConfig_t servoConfig{
 ServoMotor servo(servoConfig);
 
 // create global controlled valve object that regulates the valve position
-ControlledValve valveControl(&servo);
+ControlledValve valveControl(&servo, DEFAULT_TARGET_PRESSURE);
