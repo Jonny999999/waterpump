@@ -4,6 +4,7 @@
 #include "pumpControl.hpp"
 #include "pressureSensor.hpp"
 #include "mode.hpp"
+#include "display.hpp"
 
 //TODO drop global variables again (optimize mqtt task)
 
@@ -18,3 +19,8 @@ extern ServoMotor servo;
 
 // create controlled valve object that regulates the valve position
 extern ControlledValve valveControl;
+
+// create global display objects
+extern handledDisplay displayTop;
+extern handledDisplay displayMid;
+extern handledDisplay displayBot;

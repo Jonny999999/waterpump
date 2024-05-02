@@ -18,3 +18,18 @@
 #define MAIN_DNS_SERVER     "10.0.0.1"
 #define BACKUP_DNS_SERVER   "8.8.8.8"
 #define WIFI_LOGLEVEL ESP_LOG_INFO
+
+
+//--------------------------
+//----- display config -----
+//--------------------------
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 0, 0)
+#define HOST    HSPI_HOST
+#else
+#define HOST    SPI2_HOST
+#endif
+#define DISPLAY_PIN_NUM_MOSI GPIO_NUM_23
+#define DISPLAY_PIN_NUM_CLK GPIO_NUM_22
+#define DISPLAY_PIN_NUM_CS GPIO_NUM_27
+#define DISPLAY_DELAY 2000
+#define DISPLAY_BRIGHTNESS 2 // 0 - 15

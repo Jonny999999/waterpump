@@ -10,6 +10,7 @@ idf_component_register(
         "mqtt.c"
         "mqtt.cpp"
         "global.cpp"
+        "display.cpp"
     INCLUDE_DIRS 
         "."
     )

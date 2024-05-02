@@ -30,11 +30,12 @@ extern "C" void app_main(void)
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
-    esp_log_level_set("pressure", ESP_LOG_INFO);
+    esp_log_level_set("pressure", ESP_LOG_WARN);
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
     esp_log_level_set("lookupTable", ESP_LOG_WARN);
+    esp_log_level_set("display", ESP_LOG_INFO);
 
     // enable 5V volage regulator (needed for pressure sensor and flow meter)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
@@ -124,11 +125,33 @@ extern "C" void app_main(void)
     }
 #endif
 
+
     // repeately run actions depending on current system mode
     controlMode_t modeNow = IDLE;
     controlMode_t modePrev = IDLE;
     while (1)
     {
+    // test display
+    //displayTop.showString("test 123");
+    static char buf[15];
+    static char formatted[10];
+
+    //display top: show current pressure (4 digits, variable decimal palaces)
+    snprintf(formatted, 10, "%.3f", pressureSensor.readBar());
+    formatted[5] = '\0'; //limit to 5 characters
+    snprintf(buf, 15, "%s bar", formatted);
+    displayTop.showString(buf);
+
+    //display middle: show current valve percent (3 digits, variable decimal palaces)
+    snprintf(formatted, 10, "%04.2f", servo.getPercent());
+    formatted[4] = '\0'; //limit to 4 characters
+    snprintf(buf, 15, "v%s per", formatted);
+    displayMid.showString(buf);
+
+    //displat bot:
+    displayBot.showString("........");
+
+
         // get current and store previous mode
         modePrev = modeNow;
         modeNow = control.getMode();
