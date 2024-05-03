@@ -84,10 +84,11 @@ ServoMotor servo(servoConfig);
 ControlledValve valveControl(&servo, DEFAULT_TARGET_PRESSURE);
 
 
-// initialize display (3 connected in series)
-max7219_t three7SegDisplays = display_init();
-esp_err_t e = max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
-// create global display objects, one for each segment
-handledDisplay displayTop(three7SegDisplays, 0);
-handledDisplay displayMid(three7SegDisplays, 8);
-handledDisplay displayBot(three7SegDisplays, 16);
+// display must be initialized in main after enabling 5V
+// FIXME currently created in main -> make global again
+
+//max7219_t *three7SegDisplays = NULL;  
+//// create global display objects, one for each segment
+//handledDisplay displayTop(three7SegDisplays, 0);
+//handledDisplay displayMid(three7SegDisplays, 8);
+//handledDisplay displayBot(three7SegDisplays, 16);

@@ -19,6 +19,7 @@ extern "C"
 #include "pressureSensor.hpp"
 #include "pumpControl.hpp"
 #include "mqtt.hpp"
+#include "config.h"
 
 //tag for logging
 static const char * TAG = "main";
@@ -57,6 +58,20 @@ extern "C" void app_main(void)
     // enable interrupts, initialize flow sensor
     gpio_install_isr_service(0);
     flowSensor.init();
+
+
+    // initialize display (3 connected in series)
+    // has to be here because 5v have to be on first
+    vTaskDelay(100 / portTICK_PERIOD_MS); // wait for 5v
+    max7219_t three7SegDisplays = display_init();
+    esp_err_t e = max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
+    // create global display objects, one for each segment
+    handledDisplay displayTop(three7SegDisplays, 0);
+    handledDisplay displayMid(three7SegDisplays, 8);
+    handledDisplay displayBot(three7SegDisplays, 16);
+
+
+
 
     // create control task (handle Buttons, Poti and define System-mode)
     xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL); // implemented in mode.cpp

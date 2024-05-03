@@ -54,9 +54,9 @@ max7219_t display_init(){
     ESP_ERROR_CHECK(max7219_init(&dev));
     //0...15
     ESP_ERROR_CHECK(max7219_set_brightness(&dev, DISPLAY_BRIGHTNESS));
+    ESP_LOGI(TAG, "initializing display - done");
     return dev;
     //display = dev;
-    ESP_LOGI(TAG, "initializing display - done");
 }
 
 
@@ -185,6 +185,7 @@ void handledDisplay::handle() {
         case displayMode::NORMAL:
             //daw given string
             max7219_draw_text_7seg(&dev, posCurrent, strOn);
+            ESP_LOGD(TAG, "writing string '%s' to display pos %d", strOn, posStart);
             break;
 
         case displayMode::BLINK:
