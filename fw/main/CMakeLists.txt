@@ -11,6 +11,7 @@ idf_component_register(
         "mqtt.cpp"
         "global.cpp"
         "display.cpp"
+        "flowSensor.cpp"
     INCLUDE_DIRS 
         "."
     )

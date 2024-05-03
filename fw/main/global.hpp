@@ -5,6 +5,7 @@
 #include "pressureSensor.hpp"
 #include "mode.hpp"
 #include "display.hpp"
+#include "flowSensor.hpp"
 
 //TODO drop global variables again (optimize mqtt task)
 
@@ -13,6 +14,9 @@ extern SystemModeController control;
 
 // create global pressure sensor object
 extern AnalogPressureSensor pressureSensor;
+
+// create global flow sensor object
+extern FlowSensor flowSensor;
 
 // global objects defined in main.c
 extern ServoMotor servo;

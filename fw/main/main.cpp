@@ -31,6 +31,7 @@ extern "C" void app_main(void)
     esp_log_level_set("servo", ESP_LOG_INFO);
     esp_log_level_set("control", ESP_LOG_INFO);
     esp_log_level_set("pressure", ESP_LOG_WARN);
+    esp_log_level_set("flowSensor", ESP_LOG_DEBUG);
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
@@ -52,6 +53,10 @@ extern "C" void app_main(void)
 
     // turn servo power supply on (onboard relay)
     servo.enable();
+
+    // enable interrupts, initialize flow sensor
+    gpio_install_isr_service(0);
+    flowSensor.init();
 
     // create control task (handle Buttons, Poti and define System-mode)
     xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL); // implemented in mode.cpp
@@ -126,11 +131,25 @@ extern "C" void app_main(void)
 #endif
 
 
+//#define TEST_FLOW_SENSOR
+#ifdef TEST_FLOW_SENSOR
+    while (1)
+    {
+        //ESP_LOGW(TAG, "pulse=%ld", flowSensor.getPulseCount());
+        vTaskDelay(150 / portTICK_PERIOD_MS);
+        flowSensor.read();
+    }
+#endif
+
+
     // repeately run actions depending on current system mode
     controlMode_t modeNow = IDLE;
     controlMode_t modePrev = IDLE;
     while (1)
     {
+    //read/update flow sensor
+    flowSensor.read();
+
     // test display
     //displayTop.showString("test 123");
     static char buf[15];
@@ -149,7 +168,9 @@ extern "C" void app_main(void)
     displayMid.showString(buf);
 
     //displat bot:
-    displayBot.showString("........");
+    snprintf(buf, 15, "%4.0f Lit", flowSensor.getVolume_liter());
+    displayBot.showString(buf);
+    //TODO rotate through volume, flow, target-pressure etc...
 
 
         // get current and store previous mode

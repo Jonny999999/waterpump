@@ -64,6 +64,9 @@ SystemModeController control(controlConfig);
 //AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
 AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]));
 
+// create global flow sensor object
+FlowSensor flowSensor(GPIO_NUM_26, 12);
+
 // create global servo object
 servoConfig_t servoConfig{
     .gpioPwmSignal = 27,
