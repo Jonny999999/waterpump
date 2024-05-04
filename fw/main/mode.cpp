@@ -90,6 +90,21 @@ void SystemModeController::handle(){
         float pressureTarget = potiPercent * MAX_PRESSURE / 100;
         valveControl.setTargetPressure(pressureTarget);
         ESP_LOGW(TAG, "set-button pressed: Updating target pressure to %.3f bar (poti)", pressureTarget);
+
+        // show target pressure on display 2
+        // TODO handle display priority
+        static char buf[15];
+        static char formatted[10];
+        snprintf(formatted, 10, "%.3f", pressureTarget);
+        formatted[5] = '\0'; // limit to 5 characters
+        snprintf(buf, 15, "%s bar", formatted);
+        displayMid.showString(buf);
+        // TODO blink
+    }
+    else if (mButtonSet.fallingEdge)
+    {
+        // stop showing target pressure
+        // TODO
     }
 
 // handle current mode

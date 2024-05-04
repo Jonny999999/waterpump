@@ -17,6 +17,7 @@
 //#define DISPLAY_PIN_NUM_CS GPIO_NUM_27
 //#define DISPLAY_DELAY 2000
 //#define DISPLAY_BRIGHTNESS 8
+//#define DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES 3
 
 
 
@@ -47,7 +48,7 @@ max7219_t display_init(){
 
     // Configure device
     max7219_t dev;
-    dev.cascade_size = 2;
+    dev.cascade_size = DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES;
     dev.digits = 0;
     dev.mirrored = true;
     ESP_ERROR_CHECK(max7219_init_desc(&dev, HOST, MAX7219_MAX_CLOCK_SPEED_HZ, DISPLAY_PIN_NUM_CS));
@@ -96,10 +97,23 @@ void display_ShowWelcomeMsg(max7219_t dev){
 handledDisplay::handledDisplay(max7219_t displayDevice, uint8_t posStart_f) {
     ESP_LOGI(TAG, "Creating handledDisplay instance with startPos at %i", posStart);
     //copy variables
-    dev = displayDevice;
+    posStart = posStart_f;
+    init(displayDevice);
+}
+handledDisplay::handledDisplay(uint8_t posStart_f) {
+    ESP_LOGI(TAG, "Creating handledDisplay instance with startPos at %i", posStart);
+    ESP_LOGI(TAG, "(note: .init(...) has to be run manually later!)");
     posStart = posStart_f;
 }
 
+//----------------
+//----- init -----
+//----------------
+void handledDisplay::init(max7219_t displayDevice){
+    ESP_LOGI(TAG, "initialized display object with reference to hardware");
+    dev = displayDevice;
+    isInitialized = true;
+}
 
 
 //================================
@@ -181,6 +195,12 @@ void handledDisplay::blink(uint8_t count_f, uint32_t msOn_f, uint32_t msOff_f, c
 //function that handles time based modes
 //writes text to the 7 segment display depending on the current mode
 void handledDisplay::handle() {
+    // check if initialized (device is actually valid)
+    if (!isInitialized) {
+        ESP_LOGE(TAG, "display not initialized! make sure to pass max7219 device first by running `.init(device)`");
+        return;
+    }
+
     switch (mode){
         case displayMode::NORMAL:
             //daw given string

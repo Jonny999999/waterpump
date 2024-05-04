@@ -29,8 +29,10 @@ class handledDisplay {
         //--- constructor ---
         //TODO add posMax to prevent writing in segments of other instance
         handledDisplay(max7219_t displayDevice, uint8_t posStart);
+        handledDisplay(uint8_t posStart); // create without reference to hardware yet (.init() has to be run manually later)
 
         //--- methods ---
+        void init(max7219_t displayDevice); // provide actual hardware device to control later (e.g. after enabling 5V)
         void showString(const char * buf, uint8_t pos = 0);
         //function switches between two strings in a given interval
         void blinkStrings(const char * strOn, const char * strOff, uint32_t msOn, uint32_t msOff);
@@ -49,6 +51,7 @@ class handledDisplay {
         max7219_t dev;
         uint8_t posStart; //absolute position this display instance starts (e.g. multiple or very long 7 segment display)
         uint8_t posCurrent;
+        bool isInitialized = false;
 
         displayMode mode = displayMode::NORMAL;
         //blink modes

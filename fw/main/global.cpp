@@ -83,12 +83,8 @@ ServoMotor servo(servoConfig);
 // create global controlled valve object that regulates the valve position
 ControlledValve valveControl(&servo, DEFAULT_TARGET_PRESSURE);
 
-
-// display must be initialized in main after enabling 5V
-// FIXME currently created in main -> make global again
-
-//max7219_t *three7SegDisplays = NULL;  
-//// create global display objects, one for each segment
-//handledDisplay displayTop(three7SegDisplays, 0);
-//handledDisplay displayMid(three7SegDisplays, 8);
-//handledDisplay displayBot(three7SegDisplays, 16);
+// create global display objects, one for each segment
+// note: reference to hardware device is passed later in main() after 5V is enabled using .init()
+handledDisplay displayTop(0);
+handledDisplay displayMid(8);
+handledDisplay displayBot(16);
