@@ -36,6 +36,7 @@ extern "C" void app_main(void)
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
+    esp_log_level_set("mqtt-cpp", ESP_LOG_WARN);
     esp_log_level_set("lookupTable", ESP_LOG_WARN);
     esp_log_level_set("display", ESP_LOG_INFO);
 
@@ -49,8 +50,6 @@ extern "C" void app_main(void)
     // connect mqtt
     mqtt_app_start();
 
-    // create motor object
-    Vfd4DigitalPins motor(GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_4, true);
 
     // turn servo power supply on (onboard relay)
     servo.enable();
@@ -63,12 +62,13 @@ extern "C" void app_main(void)
     // has to be here because 5v have to be on first
     vTaskDelay(10 / portTICK_PERIOD_MS); // wait for 5v
     // create and initialize display device/driver
-    max7219_t three7SegDisplays = display_init();
-    //esp_err_t e = max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
+    three7SegDisplays = display_init();
+    max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
     // initialize the global display objects (pass display device)
     displayTop.init(three7SegDisplays);
     displayMid.init(three7SegDisplays);
     displayBot.init(three7SegDisplays);
+
 
     // create control task (handle Buttons, Poti and define System-mode)
     xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL); // implemented in mode.cpp
@@ -177,7 +177,7 @@ extern "C" void app_main(void)
             if (modePrev != REGULATE_PRESSURE)
             {
                 ESP_LOGW(TAG, "changed to REGULATE_PRESSURE -> enable motor");
-                motor.turnOn(2); // start motor at medium speed
+                motor.turnOn(1); // start motor at medium speed
             }
             // regulate valve pos
             valveControl.compute(pressureSensor.readBar());
@@ -190,6 +190,7 @@ extern "C" void app_main(void)
             if (modePrev == REGULATE_PRESSURE)
             {
                 ESP_LOGW(TAG, "changed from REGULATE_PRESSURE -> disable motor, close valve");
+                motor.setSpeedLevel(0);
                 motor.turnOff();
                 servo.setPercentage(0);
                 valveControl.reset(); // reset regulator

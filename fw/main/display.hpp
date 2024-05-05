@@ -36,15 +36,19 @@ class handledDisplay {
 
         //--- methods ---
         void init(max7219_t displayDevice); // provide actual hardware device to control later (e.g. after enabling 5V)
-        void showString(const char * buf, uint8_t pos = 0);
+
+        void showString(const char * buf, uint8_t pos = 0, bool noUpdate = false); 
+        // when 'noUpdate' is set, the display only updates at net .handle() call, this is important when accessing the object from multiple tasks (only one task may update all display objects depending on a single shared device, otherwise spi will crash)
+
         //function switches between two strings in a given interval
-        void blinkStrings(const char * strOn, const char * strOff, uint32_t msOn, uint32_t msOff);
+        void blinkStrings(const char * strOn, const char * strOff, uint32_t msOn, uint32_t msOff, bool noUpdate = false);
+
         //triggers certain count of blinking between currently shown string and off or optional certain string
-        void blink(uint8_t count, uint32_t msOn, uint32_t msOff, const char * strOff = "        ");
+        void blink(uint8_t count, uint32_t msOn, uint32_t msOff, const char * strOff = "        ", bool noUpdate = false);
         //function that handles time based modes and writes text to display
         void handle(); //has to be run regularly when blink method is used
 
-        // access variable isLocked (only used externally e.g. for communicating between tasks)
+        // access variable 'isLocked (only used externally e.g. for communicating between tasks)
         void lock(){mIsLocked = true;};
         void unnlock(){mIsLocked = false;};
         bool isLocked()const{return mIsLocked;};

@@ -60,6 +60,9 @@ controlConfig_t controlConfig{
     .adcChannelPoti = ADC_POTI};
 SystemModeController control(controlConfig);
 
+// create motor object
+Vfd4DigitalPins motor(GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_4, true);
+
 // create global pressure sensor on gpio 36
 //AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
 AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]));
@@ -85,6 +88,7 @@ ControlledValve valveControl(&servo, DEFAULT_TARGET_PRESSURE);
 
 // create global display objects, one for each segment
 // note: reference to hardware device is passed later in main() after 5V is enabled using .init()
+max7219_t three7SegDisplays;
 handledDisplay displayTop(0);
 handledDisplay displayMid(8);
 handledDisplay displayBot(16);

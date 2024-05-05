@@ -24,7 +24,7 @@ void task_control(void *pvParameters)
     while (1)
     {
         control->handle();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
 
@@ -112,7 +112,7 @@ void SystemModeController::handle(){
         formatted[5] = '\0'; // limit to 5 characters
         snprintf(buf, 15, "%s bar", formatted);
         //displayMid.showString(buf);
-        displayMid.blinkStrings(buf, "        ", 299, 99);
+        displayMid.blinkStrings(buf, "        ", 299, 99, true);
     }
 
     // lock display while set button is pressed

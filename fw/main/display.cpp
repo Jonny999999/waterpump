@@ -11,7 +11,7 @@ static const char *TAG = "display"; //tag for logging
 //==========================
 // task that handles the actual display output
 // shows pressure, valve, flow, volume, target pressure etc... depending on modes
-#define DISPLAY_RE_INIT_INTERVAL 10000 // initialize display every x ms (workaround crashes because of noise)
+#define DISPLAY_RE_INIT_INTERVAL 15000 // initialize display every x ms (workaround crashes because of noise)
 void task_display(void *pvParameters)
 {
     ESP_LOGW(TAG, "starting display task...");
@@ -22,11 +22,22 @@ void task_display(void *pvParameters)
     uint32_t timestamp_displayInitialized = 0;
     while (1)
     {
+        // handle all display objects
+        // (handle blinking, apply content from other taks using 'noUpdate')
+        displayTop.handle();
+        displayMid.handle();
+        displayBot.handle();
+
         // re-initialize display when due
         if (esp_log_timestamp() - timestamp_displayInitialized > DISPLAY_RE_INIT_INTERVAL)
         {
-            ESP_LOGI(TAG, "re-initializing display (interval=%dms)...", DISPLAY_RE_INIT_INTERVAL);
-            display_init();
+            ESP_LOGW(TAG, "re-initializing display (interval=%ds)...", DISPLAY_RE_INIT_INTERVAL / 1000);
+            ESP_LOGD(TAG, "shutdown display");
+            max7219_set_shutdown_mode(&three7SegDisplays, true);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            ESP_LOGD(TAG, "init display");
+            max7219_init(&three7SegDisplays);
+            max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
             timestamp_displayInitialized = esp_log_timestamp();
         }
 
@@ -40,7 +51,7 @@ void task_display(void *pvParameters)
         }
 
         // display middle: show current valve percent (3 digits, variable decimal palaces)
-        if (!displayMid.isLocked()) //dont update here when currently used by task_contol (shows target pressure)
+        if (!displayMid.isLocked()) // dont update here when currently used by task_contol (shows target pressure)
         {
             snprintf(formatted, 10, "%04.2f", servo.getPercent());
             formatted[4] = '\0'; // limit to 4 characters
@@ -52,15 +63,16 @@ void task_display(void *pvParameters)
         if (!displayBot.isLocked())
         {
             snprintf(buf, 15, "%4.0f Lit", flowSensor.getVolume_liter());
-            snprintf(buf1, 15, "%4.0f Lpm", flowSensor.getFlowRate_literPerSecond()*60);
-            //displayBot.showString(buf);
+            snprintf(buf1, 15, "%4.0f Lpm", flowSensor.getFlowRate_literPerSecond() * 60);
+            // displayBot.showString(buf);
             displayBot.blinkStrings(buf, buf1, 2000, 1000);
             // TODO rotate through volume, flow, target-pressure etc...
         }
 
-        vTaskDelay(250 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
+
 
 //#################################
 //######## display library ########
@@ -90,14 +102,12 @@ void task_display(void *pvParameters)
 #endif
 
 
-
 //==============================
 //======== init display ========
 //==============================
 //initialize display with parameters defined in config.hpp
 //TODO: dont use global variables/macros here
 max7219_t display_init(){
-    
     ESP_LOGI(TAG, "initializing display...");
     // Configure SPI bus
     spi_bus_config_t cfg;
@@ -185,7 +195,7 @@ void handledDisplay::init(max7219_t displayDevice){
 //========== showString ==========
 //================================
 //function that displays a given string on the display
-void handledDisplay::showString(const char * buf, uint8_t pos_f){
+void handledDisplay::showString(const char * buf, uint8_t pos_f, bool noUpdate){
     //calculate actual absolute position
     posCurrent = posStart + pos_f;
     //copy the desired string
@@ -195,7 +205,8 @@ void handledDisplay::showString(const char * buf, uint8_t pos_f){
         mode = displayMode::NORMAL;
         ESP_LOGI(TAG, "pos:%i - disable blink strings mode -> normal mode str='%s'", posStart, strOn);
     }
-    handle(); //draws the text depending on mode
+    if (!noUpdate)  // when noUpdate is set display updates at next manual handle run
+        handle(); // draws the text depending on mode
 }
 
 
@@ -207,7 +218,7 @@ void handledDisplay::showString(const char * buf, uint8_t pos_f){
 //========== blinkStrings ==========
 //==================================
 //function switches between two strings in a given interval
-void handledDisplay::blinkStrings(const char * strOn_f, const char * strOff_f, uint32_t msOn_f, uint32_t msOff_f){
+void handledDisplay::blinkStrings(const char * strOn_f, const char * strOff_f, uint32_t msOn_f, uint32_t msOff_f, bool noUpdate){
     //copy/update variables
     strcpy(strOn, strOn_f);
     strcpy(strOff, strOff_f);
@@ -223,7 +234,8 @@ void handledDisplay::blinkStrings(const char * strOn_f, const char * strOff_f, u
         timestampOn = esp_log_timestamp();
     }
     //run handle function for display update
-    handle();
+    if (!noUpdate)  // when noUpdate is set display updates at next manual handle run
+        handle();
 }
 
 
@@ -232,7 +244,7 @@ void handledDisplay::blinkStrings(const char * strOn_f, const char * strOff_f, u
 //============ blink ============
 //===============================
 //function triggers certain count and interval of off durations
-void handledDisplay::blink(uint8_t count_f, uint32_t msOn_f, uint32_t msOff_f, const char * strOff_f) {
+void handledDisplay::blink(uint8_t count_f, uint32_t msOn_f, uint32_t msOff_f, const char * strOff_f, bool noUpdate) {
     //copy/update parameters
     count = count_f;
     msOn = msOn_f;
@@ -249,7 +261,8 @@ void handledDisplay::blink(uint8_t count_f, uint32_t msOn_f, uint32_t msOff_f, c
         timestampOff = esp_log_timestamp();
     }
     //run handle function for display update
-    handle();
+    if (!noUpdate)  // when noUpdate is set display updates at next manual handle run
+        handle();
 }
 
 
