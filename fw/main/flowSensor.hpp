@@ -23,6 +23,7 @@ private:
     double mFlow_literPerSecond = 0;
     float mVolume_liter = 0;
     volatile uint32_t mPulseCount = 0;
+    volatile uint64_t mTimestampLastPulseUs = 0; 
     // config
     float mConfigPulsesPerLiter = 1;
     gpio_num_t mGpioPulse;

@@ -17,6 +17,14 @@ extern "C"{
 
 #include <cJSON.h>
 
+
+//---------------------
+//----- variables -----
+//---------------------
+//tag for logging
+static const char *TAG = "mqtt-cpp";
+
+
 //=====================
 //===== task_mqtt =====
 //=====================
@@ -48,6 +56,10 @@ void task_mqtt(void *pvParameters)
         uint32_t time;
         // get current stats from object
         valveControl.getCurrentStats(&time, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
+
+        // publish motor speed
+        mqtt_publish(motor.getSpeedLevel() ,"waterpump/status/motorLevel", 0);
+
 
         //publish values one by one
         mqtt_publish(pressureDiff ,"waterpump/valve/pidStats/pressureDiff", 0);
@@ -144,6 +156,23 @@ void handleTopicValveReset(char * data, int len) {
     valveControl.reset();
 }
 
+void handleTopicSetTargetPressure(char * data, int len) {
+    ESP_LOGW(TAG, "recieved target pressure");
+    double value;
+    // convert data to float and assign to Kd if successfull
+    if (!cStrToFloat(data, len, &value))
+    valveControl.setTargetPressure(value);
+}
+
+void handleTopicStart(char * data, int len) {
+    ESP_LOGW(TAG, "start via mqtt");
+    control.changeMode(REGULATE_PRESSURE);
+}
+
+void handleTopicStop(char * data, int len) {
+    ESP_LOGW(TAG, "stop via mqtt");
+    control.changeMode(IDLE);
+}
 
 //=================================
 //======= subscribed topics =======
@@ -185,6 +214,27 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         handleTopicValveReset
     },
+    {
+        "start pump",
+        "waterpump/start",
+        0,
+        0,
+        handleTopicStart
+    },
+    {
+        "stop pump",
+        "waterpump/stop",
+        0,
+        0,
+        handleTopicStop
+    },
+    {
+        "set target pressure",
+        "waterpump/setTargetPressure",
+        0,
+        0,
+        handleTopicSetTargetPressure
+    },
 };
 size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt_subscribedTopic_t);
 
@@ -192,11 +242,6 @@ size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt
 
 
 
-
-//---------------------
-//----- variables -----
-//---------------------
-static const char *TAG = "MQTT_cpp";
 
 
 

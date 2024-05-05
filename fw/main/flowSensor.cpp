@@ -2,6 +2,7 @@ extern "C"
 {
 #include "esp_log.h"
 #include "esp_attr.h"
+#include "esp_timer.h"
 }
 #include "flowSensor.hpp"
 
@@ -22,11 +23,22 @@ FlowSensor::FlowSensor(gpio_num_t gpioPulse, float pulsesPerLiter)
 }
 
 
-
+//100l/min -> 20pulses/s => 1 period = 50000us
+#define MIN_PULSE_DURATION_US 50000 //period (rising edge to next rising edge)
 void FlowSensor::countPulse()
 {
-    // increment pulse count by 1
-    mPulseCount++;
+    // get current timestamp in us
+    int64_t now = esp_timer_get_time();
+
+    // count pulse if last edge long enough ago
+    // FIXME: this idea of removing noise only works when there are single noise spikes, if there is continous noise, nothing will be counted => needs testing
+    if (now - mTimestampLastPulseUs > MIN_PULSE_DURATION_US) {
+        // increment pulse count by 1
+        mPulseCount++;
+    }
+
+    // update timestamp last pulse (in any case)
+    mTimestampLastPulseUs = now;
 }
 
 
