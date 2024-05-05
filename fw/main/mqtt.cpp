@@ -41,7 +41,7 @@ void task_mqtt(void *pvParameters)
         // ESP_LOGI(TAG, "publishing values");
 
         //--- publish current pressure ---
-        mqtt_publish(pressureSensor.readBar(), "waterpump/pressure", 0);
+        mqtt_publish(pressureSensor.readBar(), "waterpump/pressure_bar", 0);
 
         //--- publish valve control stats ---
         float pressureDiff, targetPressure, p, i, d, valve;
@@ -57,6 +57,9 @@ void task_mqtt(void *pvParameters)
         mqtt_publish(i,"waterpump/valve/pidStats/i", 0);
         mqtt_publish(d,"waterpump/valve/pidStats/d", 0);
 
+        // flow sensor
+        mqtt_publish((float)(flowSensor.getFlowRate_literPerSecond()*60), "waterpump/flowRate_literPerMinute", 0);
+        mqtt_publish(flowSensor.getVolume_liter(), "waterpump/volume_liter", 0);
         /*  publish all at once using json object (publish causes memoryleak)
         // create json object
         cJSON *jsonObj = cJSON_CreateObject();

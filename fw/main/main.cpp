@@ -50,7 +50,7 @@ extern "C" void app_main(void)
     mqtt_app_start();
 
     // create motor object
-    Vfd4DigitalPins motor(GPIO_NUM_4, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_15, true);
+    Vfd4DigitalPins motor(GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_4, true);
 
     // turn servo power supply on (onboard relay)
     servo.enable();
