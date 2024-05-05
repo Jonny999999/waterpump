@@ -34,3 +34,4 @@
 #define DISPLAY_DELAY 2000
 #define DISPLAY_BRIGHTNESS 2 // 0 - 15
 #define DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES 3
+#define DISPLAY_CLOCK_SPEED_HZ 100000 //max 1MHz (defaults to MAX if not defined)

@@ -7,6 +7,8 @@ extern "C" {
 
 //tag for logging
 static const char * TAG = "control";
+//string for logging the control mode
+extern const char *controlMode_str[] = {"IDLE", "SPEED", "REGULATE_PRESSURE", "REGULATE_PRESSURE_VALVE_ONLY"};
 
 //==========================
 //====== control task ======
@@ -22,7 +24,7 @@ void task_control(void *pvParameters)
     while (1)
     {
         control->handle();
-        vTaskDelay(150 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
@@ -40,13 +42,24 @@ SystemModeController::SystemModeController(controlConfig_t config)
     //TODO init gpios
 }
 
-
+//--------------------
+//----- initAdc ------
+//--------------------
 // initialize used ADC (poti)
 void SystemModeController::initAdc(){
     ESP_LOGW(TAG, "initializing adc");
     // configure adc for poti
     adc1_config_width(ADC_WIDTH_BIT_12);                  //=> max resolution 4096
     adc1_config_channel_atten(mConfig.adcChannelPoti, ADC_ATTEN_DB_11); //max voltage
+}
+
+
+//====================
+//==== changeMode ====
+//====================
+void SystemModeController::changeMode(controlMode_t newMode){
+    ESP_LOGW(TAG, "changeMode: Switching from mode '%s' to '%s'", controlMode_str[(int)mMode], controlMode_str[(int)newMode]);
+    mMode = newMode;
 }
 
 
@@ -98,13 +111,20 @@ void SystemModeController::handle(){
         snprintf(formatted, 10, "%.3f", pressureTarget);
         formatted[5] = '\0'; // limit to 5 characters
         snprintf(buf, 15, "%s bar", formatted);
-        displayMid.showString(buf);
-        // TODO blink
+        //displayMid.showString(buf);
+        displayMid.blinkStrings(buf, "        ", 299, 99);
+    }
+
+    // lock display while set button is pressed
+    if (mButtonSet.risingEdge)
+    {
+        // prevent display task from using the display
+        displayMid.lock();
     }
     else if (mButtonSet.fallingEdge)
     {
-        // stop showing target pressure
-        // TODO
+        // stop showing target pressure, give display task access again
+        displayMid.unnlock();
     }
 
 // handle current mode

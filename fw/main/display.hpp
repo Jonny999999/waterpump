@@ -15,6 +15,9 @@ extern "C"
 #include <cstring>
 
 
+// task that handles the actual display output
+// shows pressure, valve, flow, volume, target pressure etc... depending on modes
+void task_display(void *pvParameters);
 
 //function for initializing the display using configuration from macros in config.h
 max7219_t display_init();
@@ -41,6 +44,11 @@ class handledDisplay {
         //function that handles time based modes and writes text to display
         void handle(); //has to be run regularly when blink method is used
 
+        // access variable isLocked (only used externally e.g. for communicating between tasks)
+        void lock(){mIsLocked = true;};
+        void unnlock(){mIsLocked = false;};
+        bool isLocked()const{return mIsLocked;};
+
         //TODO: blinkStrings and blink are very similar - optimize?
         //TODO: add 'scroll string' method
 
@@ -52,6 +60,7 @@ class handledDisplay {
         uint8_t posStart; //absolute position this display instance starts (e.g. multiple or very long 7 segment display)
         uint8_t posCurrent;
         bool isInitialized = false;
+        bool mIsLocked = false;
 
         displayMode mode = displayMode::NORMAL;
         //blink modes

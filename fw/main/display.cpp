@@ -1,7 +1,70 @@
 #include "display.hpp"
 
 #include "config.h"
+#include "global.hpp"
 
+//=== variables ===
+static const char *TAG = "display"; //tag for logging
+
+//==========================
+//====== display task ======
+//==========================
+// task that handles the actual display output
+// shows pressure, valve, flow, volume, target pressure etc... depending on modes
+#define DISPLAY_RE_INIT_INTERVAL 10000 // initialize display every x ms (workaround crashes because of noise)
+void task_display(void *pvParameters)
+{
+    ESP_LOGW(TAG, "starting display task...");
+
+    char buf[15];
+    char buf1[15];
+    char formatted[10];
+    uint32_t timestamp_displayInitialized = 0;
+    while (1)
+    {
+        // re-initialize display when due
+        if (esp_log_timestamp() - timestamp_displayInitialized > DISPLAY_RE_INIT_INTERVAL)
+        {
+            ESP_LOGI(TAG, "re-initializing display (interval=%dms)...", DISPLAY_RE_INIT_INTERVAL);
+            display_init();
+            timestamp_displayInitialized = esp_log_timestamp();
+        }
+
+        // display top: show current pressure (4 digits, variable decimal palaces)
+        if (!displayTop.isLocked())
+        {
+            snprintf(formatted, 10, "%.3f", pressureSensor.readBar());
+            formatted[5] = '\0'; // limit to 5 characters
+            snprintf(buf, 15, "%s bar", formatted);
+            displayTop.showString(buf);
+        }
+
+        // display middle: show current valve percent (3 digits, variable decimal palaces)
+        if (!displayMid.isLocked()) //dont update here when currently used by task_contol (shows target pressure)
+        {
+            snprintf(formatted, 10, "%04.2f", servo.getPercent());
+            formatted[4] = '\0'; // limit to 4 characters
+            snprintf(buf, 15, "v%s per", formatted);
+            displayMid.showString(buf);
+        }
+
+        // displat bot:
+        if (!displayBot.isLocked())
+        {
+            snprintf(buf, 15, "%4.0f Lit", flowSensor.getVolume_liter());
+            snprintf(buf1, 15, "%4.0f Lpm", flowSensor.getFlowRate_literPerSecond()*60);
+            //displayBot.showString(buf);
+            displayBot.blinkStrings(buf, buf1, 2000, 1000);
+            // TODO rotate through volume, flow, target-pressure etc...
+        }
+
+        vTaskDelay(250 / portTICK_PERIOD_MS);
+    }
+}
+
+//#################################
+//######## display library ########
+//#################################
 
 //--------------------------
 //----- display config -----
@@ -16,13 +79,15 @@
 //#define DISPLAY_PIN_NUM_CLK GPIO_NUM_22
 //#define DISPLAY_PIN_NUM_CS GPIO_NUM_27
 //#define DISPLAY_DELAY 2000
-//#define DISPLAY_BRIGHTNESS 8
+//#define DISPLAY_BRIGHTNESS 8 // 0 - 15
 //#define DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES 3
+//#define DISPLAY_CLOCK_SPEED_HZ 1000000 //max 1MHz (default if not defined)
 
 
-
-//=== variables ===
-static const char *TAG = "display"; //tag for logging
+//use configured clock speed if defined
+#ifndef DISPLAY_CLOCK_SPEED_HZ
+#define DISPLAY_CLOCK_SPEED_HZ MAX7219_MAX_CLOCK_SPEED_HZ
+#endif
 
 
 
@@ -51,7 +116,7 @@ max7219_t display_init(){
     dev.cascade_size = DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES;
     dev.digits = 0;
     dev.mirrored = true;
-    ESP_ERROR_CHECK(max7219_init_desc(&dev, HOST, MAX7219_MAX_CLOCK_SPEED_HZ, DISPLAY_PIN_NUM_CS));
+    ESP_ERROR_CHECK(max7219_init_desc(&dev, HOST, DISPLAY_CLOCK_SPEED_HZ, DISPLAY_PIN_NUM_CS));
     ESP_ERROR_CHECK(max7219_init(&dev));
     //0...15
     ESP_ERROR_CHECK(max7219_set_brightness(&dev, DISPLAY_BRIGHTNESS));

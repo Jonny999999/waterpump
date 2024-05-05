@@ -8,6 +8,7 @@ extern "C" {
 #include "gpio_evaluateSwitch.hpp"
 
 typedef enum controlMode_t {IDLE, SPEED, REGULATE_PRESSURE, REGULATE_PRESSURE_VALVE_ONLY } controlMode_t;
+extern const char *controlMode_str[4];
 
 
 typedef struct controlConfig_t {

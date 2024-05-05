@@ -75,6 +75,9 @@ extern "C" void app_main(void)
 
     // create mqtt task (repeatedly publish variables)
     xTaskCreate(&task_mqtt, "task_mqtt", 4096 * 4, &control, 5, NULL); // implemented in mqtt.cpp
+    
+    // create display task (handle display content)
+    xTaskCreate(&task_display, "task_display", 4096, &control, 5, NULL); // implemented in display.cpp
 
     // TODO add tasks "regulate-pressure", "mqtt", ...
 
@@ -161,29 +164,6 @@ extern "C" void app_main(void)
     {
     //read/update flow sensor
     flowSensor.read();
-
-    // test display
-    //displayTop.showString("test 123");
-    static char buf[15];
-    static char formatted[10];
-
-    //display top: show current pressure (4 digits, variable decimal palaces)
-    snprintf(formatted, 10, "%.3f", pressureSensor.readBar());
-    formatted[5] = '\0'; //limit to 5 characters
-    snprintf(buf, 15, "%s bar", formatted);
-    displayTop.showString(buf);
-
-    //display middle: show current valve percent (3 digits, variable decimal palaces)
-    snprintf(formatted, 10, "%04.2f", servo.getPercent());
-    formatted[4] = '\0'; //limit to 4 characters
-    snprintf(buf, 15, "v%s per", formatted);
-    displayMid.showString(buf);
-
-    //displat bot:
-    snprintf(buf, 15, "%4.0f Lit", flowSensor.getVolume_liter());
-    displayBot.showString(buf);
-    //TODO rotate through volume, flow, target-pressure etc...
-
 
         // get current and store previous mode
         modePrev = modeNow;
