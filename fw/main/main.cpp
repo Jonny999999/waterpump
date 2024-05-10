@@ -3,7 +3,6 @@ extern "C"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-
 #include "esp_log.h"
 #include "driver/adc.h"
 
@@ -11,18 +10,20 @@ extern "C"
 #include "mqtt.h"
 }
 
-#include <stdio.h>
-#include "global.hpp"
 #include "vfd.hpp"
-#include "mode.hpp"
 #include "servo.hpp"
 #include "pressureSensor.hpp"
-#include "pumpControl.hpp"
+#include "display.hpp"
+
 #include "mqtt.hpp"
+#include "pumpControl.hpp"
+#include "mode.hpp"
+#include "global.hpp"
 #include "config.h"
 
-//tag for logging
-static const char * TAG = "main";
+// tag for logging
+static const char *TAG = "main";
+
 
 extern "C" void app_main(void)
 {
@@ -40,16 +41,15 @@ extern "C" void app_main(void)
     esp_log_level_set("lookupTable", ESP_LOG_WARN);
     esp_log_level_set("display", ESP_LOG_INFO);
 
-    // enable 5V volage regulator (needed for pressure sensor and flow meter)
+    // enable 5V voltage regulator (needed for pressure sensor and display)
     gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_NUM_17, 1);
 
     // connect wifi
     wifi_connect();
 
-    // connect mqtt
+    // connect mqtt broker
     mqtt_app_start();
-
 
     // turn servo power supply on (onboard relay)
     servo.enable();
@@ -58,10 +58,9 @@ extern "C" void app_main(void)
     gpio_install_isr_service(0);
     flowSensor.init();
 
-    // initialize display (3 connected in series)
-    // has to be here because 5v have to be on first
-    vTaskDelay(10 / portTICK_PERIOD_MS); // wait for 5v
-    // create and initialize display device/driver
+    // initialize 7 segment display
+    vTaskDelay(10 / portTICK_PERIOD_MS); // ensure 5v are up
+    // create and initialize display device/driver (3 modules connected in series)
     three7SegDisplays = display_init();
     max7219_set_brightness(&three7SegDisplays, DISPLAY_BRIGHTNESS);
     // initialize the global display objects (pass display device)
@@ -69,44 +68,28 @@ extern "C" void app_main(void)
     displayMid.init(three7SegDisplays);
     displayBot.init(three7SegDisplays);
 
-
     // create control task (handle Buttons, Poti and define System-mode)
     xTaskCreate(&task_control, "task_control", 4096, &control, 5, NULL); // implemented in mode.cpp
 
     // create mqtt task (repeatedly publish variables)
-    xTaskCreate(&task_mqtt, "task_mqtt", 4096 * 4, &control, 5, NULL); // implemented in mqtt.cpp
-    
+    xTaskCreate(&task_mqtt, "task_mqtt", 4096 * 4, NULL, 5, NULL); // implemented in mqtt.cpp
+
     // create display task (handle display content)
-    xTaskCreate(&task_display, "task_display", 4096, &control, 5, NULL); // implemented in display.cpp
+    xTaskCreate(&task_display, "task_display", 4096, NULL, 5, NULL); // implemented in display.cpp
 
-    // TODO add tasks "regulate-pressure", "mqtt", ...
+    // TODO add more tasks here e.g. "regulate-pressure", ...
 
+    //===================
     //===== TESTING =====
-
-//--- test vfd ---
-// #define VFD_TEST
-#ifdef VFD_TEST
+    //===================
+    //--- test vfd ---
+// #define TEST_VFD
+#ifdef TEST_VFD
     // test on/off
-    motor.turnOn();
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    motor.turnOff();
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
     motor.turnOn();
     // test speed levels
     while (1)
     {
-        // vary speed level time based
-        // motor.setSpeedLevel(0);
-        // motor.turnOn();
-        // vTaskDelay(2000 / portTICK_PERIOD_MS);
-        // for (int i = 0; i < 10; i++)
-        //{
-        //     motor.setSpeedLevel(i);
-        //     vTaskDelay(2000 / portTICK_PERIOD_MS);
-        // }
-        // motor.turnOff();
-        // vTaskDelay(5000 / portTICK_PERIOD_MS);
-
         // set motor speed using poti
         int potiRaw = adc1_get_raw(ADC_POTI);
         float potiPercent = (float)potiRaw / 4095 * 100;
@@ -115,55 +98,46 @@ extern "C" void app_main(void)
     }
 #endif
 
-// --- test poti, servo, pressure-sensor ---
-// #define SERVO_TEST
-#ifdef SERVO_TEST
+    //--- test servo, pressure-sensor ---
+// #define TEST_SERVO
+#ifdef TEST_SERVO
     while (1)
     {
         // test pressure sensor
         pressureSensor.readBar();
-
         // read poti
         int potiRaw = adc1_get_raw(ADC_POTI);
         float potiPercent = (float)potiRaw / 4095 * 100;
         ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
-
         // apply poti to servo
         servo.setPercentage(potiPercent);
         // servo.setAngle(180*potiPercent/100);
-
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 #endif
 
-#ifdef CALIBRATE_PRESSURE_SENSOR
-    // repeatedly read pressure sensor to manually create lookup table measurements
-    while (1)
-    {
-        pressureSensor.read();
-        vTaskDelay(150 / portTICK_PERIOD_MS);
-    }
-#endif
-
-
-//#define TEST_FLOW_SENSOR
+    //--- test flow sensor ---
+// #define TEST_FLOW_SENSOR
 #ifdef TEST_FLOW_SENSOR
     while (1)
     {
-        //ESP_LOGW(TAG, "pulse=%ld", flowSensor.getPulseCount());
+        ESP_LOGI(TAG, "pulse-count = %ld", flowSensor.getPulseCount());
         vTaskDelay(150 / portTICK_PERIOD_MS);
         flowSensor.read();
     }
 #endif
 
-
-    // repeately run actions depending on current system mode
+    //=====================
+    //===== main loop =====
+    //=====================
+    // variables
     controlMode_t modeNow = IDLE;
     controlMode_t modePrev = IDLE;
+    // repeatedly run actions depending on current system mode
     while (1)
     {
-    //read/update flow sensor
-    flowSensor.read();
+        // read/update flow sensor
+        flowSensor.read();
 
         // get current and store previous mode
         modePrev = modeNow;
@@ -173,7 +147,7 @@ extern "C" void app_main(void)
         switch (modeNow)
         {
         case REGULATE_PRESSURE:
-            // initially turn on motor
+            // turn on motor initially
             if (modePrev != REGULATE_PRESSURE)
             {
                 ESP_LOGW(TAG, "changed to REGULATE_PRESSURE -> enable motor");
@@ -186,23 +160,19 @@ extern "C" void app_main(void)
             break;
 
         default:
-            // turn motor off when previously in regulate mode
+            // turn off motor when previously in regulate mode
             if (modePrev == REGULATE_PRESSURE)
             {
                 ESP_LOGW(TAG, "changed from REGULATE_PRESSURE -> disable motor, close valve");
                 motor.setSpeedLevel(0);
                 motor.turnOff();
                 servo.setPercentage(0);
-                valveControl.reset(); // reset regulator
+                valveControl.reset(); // reset PID controller
             }
             break;
         }
 
         vTaskDelay(250 / portTICK_PERIOD_MS);
-    }
-
-    while (1)
-    {
-        vTaskDelay(portMAX_DELAY);
-    }
-}
+        //vTaskDelay(portMAX_DELAY);
+    } // end main-loop
+} // end app_main()

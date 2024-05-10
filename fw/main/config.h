@@ -6,12 +6,25 @@
 #error [=== FILE 'credentials.h' MISSING! ===] => Copy and customize 'credentials.default.h' first!
 #endif
 
-// mqtt:
+
+//-------------------------
+//---- GPIO assignment ----
+//-------------------------
+#define ADC_POTI ADC1_CHANNEL_6 //gpio34
+// note: currently mostly assigned in global.cpp
+
+
+//-------------------------
+//------ MQTT config ------
+//-------------------------
 #define MQTT_BROKER_URL     "mqtt://10.0.0.102:1883"
 #define MQTT_LOGLEVEL       ESP_LOG_WARN
 
-// wifi:
-// wifi ssid and password are configured in credentials.h
+
+//-------------------------
+//------ WIFI config ------
+//-------------------------
+// note: wifi ssid and password are configured in credentials.h
 #define STATIC_IP_ADDR      "10.0.0.88"
 #define STATIC_NETMASK_ADDR "255.255.0.0"
 #define STATIC_GW_ADDR      "10.0.0.1"
@@ -34,4 +47,4 @@
 #define DISPLAY_DELAY 2000
 #define DISPLAY_BRIGHTNESS 12 // 0 - 15
 #define DISPLAY_MODULE_COUNT_CONNECTED_IN_SERIES 3
-#define DISPLAY_CLOCK_SPEED_HZ 100000 //max 1MHz (defaults to MAX if not defined)
+#define DISPLAY_CLOCK_SPEED_HZ 100000 //(100kHz) - max is 1 MHz (defaults to MAX if not defined)
