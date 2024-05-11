@@ -7,8 +7,8 @@ extern "C" {
 #include "vfd.hpp"
 #include "gpio_evaluateSwitch.hpp"
 
-typedef enum controlMode_t {IDLE, SPEED, REGULATE_PRESSURE, REGULATE_PRESSURE_VALVE_ONLY } controlMode_t;
-extern const char *controlMode_str[4];
+typedef enum controlMode_t {IDLE, SPEED, REGULATE_PRESSURE, REGULATE_REDUCED, REGULATE_PRESSURE_VALVE_ONLY } controlMode_t;
+extern const char *controlMode_str[5];
 
 
 typedef struct controlConfig_t {
@@ -47,4 +47,10 @@ private:
     float mSpeedTarget = 0;
     gpio_evaluatedSwitch mButtonMode;
     gpio_evaluatedSwitch mButtonSet;
+
+    // variables for timeouts
+    uint32_t mTimestampLastFlow = 0;
+    uint32_t mTimestampLastNoFlow = 0;
+    float mTargetPressurePrevious = 0;
+    uint32_t mTimestampLastNonZeroPressure = 0;
 };
