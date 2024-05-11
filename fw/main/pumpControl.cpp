@@ -8,6 +8,7 @@ extern "C"
 #include "servo.hpp"
 #include "vfd.hpp"
 #include "pumpControl.hpp"
+#include "common.hpp"
 
 #define getMs() (esp_timer_get_time() / 1000)
 
@@ -18,10 +19,11 @@ extern "C"
 #define Kd 600
 //TODO variable offset depending on target pressure?
 #define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
-#define MAX_INTEGRAL_RANGE_MULTIPLIER 1  // scale maximum percentage integral term can apply to valve
-// 1 means: with integral value alone valve can reach 0 and 100 
-// >1 means: integral can overshoot (danger of windup)
-// <0 means: integral can not influence the result that much
+#define INTEGRAL_LIMIT_OFFSET 0  // increase/decrease max possible integral value (valve percent)
+// examples (integral value only):
+// 0: valve can reach exactly 0 to 100%
+// <0: valve can not reach limits (e.g. -20 -> 20% to 80%)
+// >0: valve can overshoot - danger of windup (e.g. 20 -> -20% to 120%)
 #define MIN_VALVE_MOVE_ANGLE 2
 #define MAX_DT_MS 5000 // prevent bugged action with large time delta at first after several seconds
 
@@ -113,6 +115,9 @@ void ControlledValve::compute(float pressureNow)
     timeNow = getMs();
     dt = timeNow - mTimestampLastRun;
     mTimestampLastRun = timeNow;
+    // calculate pressure change since last run
+    dp = pressureDiff - mPressureDiffLast;
+    mPressureDiffLast = pressureDiff;
     // ignore run with very large dt (probably first run of method since startup) to prevent huge integral step
     if (dt > MAX_DT_MS)
     {
@@ -120,24 +125,14 @@ void ControlledValve::compute(float pressureNow)
         ESP_LOGE("regulateValve", "dt too large (%ldms), ignoring this run", dt);
         return;
     }
-    // calculate pressure change since last run
-    dp = pressureDiff - mPressureDiffLast;
-    mPressureDiffLast = pressureDiff;
 
     // integrate
     mIntegralAccumulator += pressureDiff * dt;
-    // limit to max (prevents windup)
+    // limit to allowed range (prevents windup)
     // calculate integral limits depending on offset TODO: do this on offset change only
-    float maxIntegral = (100-mOffset) * MAX_INTEGRAL_RANGE_MULTIPLIER;
-    float minIntegral = (-mOffset) * MAX_INTEGRAL_RANGE_MULTIPLIER;
-    if (mIntegralAccumulator * mKi > maxIntegral)
-    {
-        mIntegralAccumulator = maxIntegral / mKi;
-    }
-    else if (mIntegralAccumulator * mKi < minIntegral)
-    {
-        mIntegralAccumulator = minIntegral / mKi;
-    }
+    double maxIntegral = ((100-mOffset) + INTEGRAL_LIMIT_OFFSET) / mKi;
+    double minIntegral = -(mOffset + INTEGRAL_LIMIT_OFFSET) / mKi;
+    mIntegralAccumulator = limitToRange(mIntegralAccumulator, minIntegral, maxIntegral);
 
     // --- integral term ---
     mIntegral = mKi * mIntegralAccumulator;
@@ -155,14 +150,7 @@ void ControlledValve::compute(float pressureNow)
     // TODO invert servo direction
     mTargetValvePos = 100 - mOutput;
     // Ensure newPos is within the valid range [0, 100]
-    if (mTargetValvePos < 0)
-    {
-        mTargetValvePos = 0;
-    }
-    else if (mTargetValvePos > 100)
-    {
-        mTargetValvePos = 100;
-    }
+    mTargetValvePos = limitToRange<float>(mTargetValvePos, 0, 100);
 
     // move valve to new pos
     // only move if threshold exceeded to reduce osciallation and unnecessary hardware wear
@@ -203,10 +191,10 @@ void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMot
     int currentSpeedLevel = pMotor->getSpeedLevel();
 
     // evaluate if speed is too low/high
-    // pressure too low but valve already almost compeltely closed => speed up?
+    // pressure too low but valve already almost completely closed => speed up?
     if (pressureDiff > -PRESSURE_TOLERANCE && pValve->getPercent() < VALVE_PERCENT_TOO_SLOW && currentSpeedLevel < MAX_SPEED_LEVEL)
     {
-        integralSpeedChangePlanned += 1 * dt;
+        integralSpeedChangePlanned += 1 * dt; // TODO: use actual integral? (e.g. multiply with valve difference above threshold)
         ESP_LOGD("regulateMotor", "motor seems too slow, incrementing time by %ld to %d", dt, integralSpeedChangePlanned);
     }
     // pressure too high but valve already wide open => slow down?
@@ -221,6 +209,7 @@ void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMot
         integralSpeedChangePlanned = 0;
     }
 
+    // speed change is due
     if (integralSpeedChangePlanned > CHANGE_SPEED_WAIT_TIMEOUT)
     {
         pMotor->setSpeedLevel(++currentSpeedLevel);
