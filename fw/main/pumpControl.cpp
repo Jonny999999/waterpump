@@ -14,9 +14,10 @@ extern "C"
 
 // TODO adjust parameters
 // TODO smaller steps
-#define Kp 10     // proportional gain
-#define Ki 0.09   // integral gain
-#define Kd 600
+// significantly reduced values while testing 2024.05.13:
+#define Kp 5     // proportional gain
+#define Ki 0.03  // integral gain
+#define Kd 200   // derivative gain
 //TODO variable offset depending on target pressure?
 #define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
 #define INTEGRAL_LIMIT_OFFSET 0  // increase/decrease max possible integral value (valve percent)
