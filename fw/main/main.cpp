@@ -30,10 +30,10 @@ extern "C" void app_main(void)
     // set loglevel
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
-    esp_log_level_set("servo", ESP_LOG_INFO);
+    esp_log_level_set("servo", ESP_LOG_WARN);
     esp_log_level_set("control", ESP_LOG_INFO);
     esp_log_level_set("pressure", ESP_LOG_WARN);
-    esp_log_level_set("flowSensor", ESP_LOG_INFO);
+    esp_log_level_set("flowSensor", ESP_LOG_DEBUG);
     esp_log_level_set("regulateValve", ESP_LOG_WARN);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
@@ -137,7 +137,7 @@ extern "C" void app_main(void)
     while (1)
     {
         // read/update flow sensor
-        flowSensor.read();
+        flowSensor.read(); //TODO read slower, move this to separate task?
 
         // get current and store previous mode
         modePrev = modeNow;
@@ -146,11 +146,12 @@ extern "C" void app_main(void)
         // run actions depending on current mode
         switch (modeNow)
         {
+        case REGULATE_REDUCED:
         case REGULATE_PRESSURE:
             // turn on motor initially
-            if (modePrev != REGULATE_PRESSURE)
+            if (modePrev != REGULATE_PRESSURE && modePrev != REGULATE_REDUCED)
             {
-                ESP_LOGW(TAG, "changed to REGULATE_PRESSURE -> enable motor");
+                ESP_LOGW(TAG, "changed to %s -> enable motor", controlMode_str[(int)modeNow]);
                 motor.turnOn(1); // start motor at medium speed
             }
             // regulate valve pos
@@ -159,11 +160,12 @@ extern "C" void app_main(void)
             regulateMotor(valveControl.getPressureDiff(), &servo, &motor);
             break;
 
+        case IDLE:
         default:
             // turn off motor when previously in regulate mode
-            if (modePrev == REGULATE_PRESSURE)
+            if (modePrev == REGULATE_PRESSURE || modePrev == REGULATE_REDUCED)
             {
-                ESP_LOGW(TAG, "changed from REGULATE_PRESSURE -> disable motor, close valve");
+                ESP_LOGW(TAG, "changed from %s -> disable motor, close valve", controlMode_str[(int)modePrev]);
                 motor.setSpeedLevel(0);
                 motor.turnOff();
                 servo.setPercentage(0);

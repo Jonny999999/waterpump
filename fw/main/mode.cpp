@@ -4,11 +4,12 @@ extern "C" {
 
 #include "mode.hpp"
 #include "global.hpp"
+#include "common.hpp"
 
 //tag for logging
 static const char * TAG = "control";
 //string for logging the control mode
-extern const char *controlMode_str[] = {"IDLE", "SPEED", "REGULATE_PRESSURE", "REFULATE_REDUCED", "REGULATE_PRESSURE_VALVE_ONLY"};
+extern const char *controlMode_str[] = {"IDLE", "SPEED", "REGULATE_PRESSURE", "REGULATE_REDUCED", "REGULATE_PRESSURE_VALVE_ONLY"};
 
 
 //==========================
@@ -156,14 +157,17 @@ void SystemModeController::handle()
     // TODO: Adjust those thresholds during test
 #define NO_FLOW_THRESHOLD 0.01 //liter per second considered 0 flow
 #define NO_FLOW_TIMEOUT 20000 // pressure is reduced when flow below threshold for more than this time
-#define NO_FLOW_REDUCED_PRESSURE 0.5
-#define NO_FLOW_REDUCED_TIMEOUT 3000 // time flow has to be above threshold for pressure restore
+#define NO_FLOW_REDUCED_PRESSURE 0.5 // pressure in bar when in reduced mode
+#define NO_FLOW_REDUCED_TIMEOUT 1000 // time flow has to be above threshold for pressure restore
 
 #define NO_PRESSURE_THRESHOLD 0.08  // when below that pressure for more than TIMEOUT switching to IDLE
-#define NO_PRESSURE_TIMEOUT 30000
+#define NO_PRESSURE_TIMEOUT 20000
+
+    // get current pressure
+    float pressureNow = pressureSensor.getBar();
 
     // check for pressure
-    if (pressureSensor.getBar() > NO_PRESSURE_THRESHOLD){
+    if (pressureNow > NO_PRESSURE_THRESHOLD){
         ESP_LOGV(TAG, "pressure detected");
         mTimestampLastNonZeroPressure = esp_log_timestamp();
     }
@@ -180,6 +184,17 @@ void SystemModeController::handle()
         mTimestampLastNoFlow = esp_log_timestamp();
     }
 
+    // --- no-pressure timeout ---
+    // when not in IDLE check for no pressure timeout (pump runs dry -> turn off)
+    if (mMode != IDLE 
+        && esp_log_timestamp() - mTimestampLastNonZeroPressure > NO_PRESSURE_TIMEOUT)
+        //TODO false positive at high flowrate possible? also check flow?
+        //&& flowSensor.getFlowRate_literPerSecond() < NO_FLOW_THRESHOLD
+    {
+        ESP_LOGE(TAG, "TIMEOUT - pressure less than %.2f for more than %d s! switching to IDLE", NO_PRESSURE_THRESHOLD, NO_PRESSURE_TIMEOUT / 1000);
+        changeMode(IDLE);
+        // TODO notify display or add TIMEOUT mode that has to be reset?
+    }
 
     //--------------------------
     //------ statemachine ------
@@ -192,20 +207,15 @@ void SystemModeController::handle()
         break;
 
     case REGULATE_PRESSURE: // normal operation
-        // check for no pressure timeout (pump runs dry -> turn off)
-        if (esp_log_timestamp() - mTimestampLastNonZeroPressure > NO_PRESSURE_TIMEOUT) {
-            ESP_LOGE(TAG, "TIMEOUT - pressure less than %.2f for more than %d s! switching to IDLE", NO_PRESSURE_THRESHOLD, NO_PRESSURE_TIMEOUT/1000);
-            changeMode(IDLE);
-            // TODO notify display or add TIMEOUT mode that has to be reset?
-        }
-
         // check for no flow timeout (reduce pressure)
-        if (esp_log_timestamp() - mTimestampLastFlow > NO_FLOW_TIMEOUT)
+        if (pressureNow > NO_PRESSURE_THRESHOLD &&
+            esp_log_timestamp() - mTimestampLastFlow > NO_FLOW_TIMEOUT)
         {
-            ESP_LOGW(TAG, "no flow detected for more than %d s -> reducing pressure to %.2f bar", NO_FLOW_TIMEOUT, NO_FLOW_REDUCED_PRESSURE);
             // store previous (actual desired) target pressure
             mTargetPressurePrevious = valveControl.getTargetPressure();
-            valveControl.setTargetPressure(NO_FLOW_REDUCED_PRESSURE);
+            // note: using min() to not increase pressure if already lower than the reduced value
+            ESP_LOGW(TAG, "no flow detected for more than %d s -> reducing pressure to %.2f bar", NO_FLOW_TIMEOUT, min(NO_FLOW_REDUCED_PRESSURE, mTargetPressurePrevious));
+            valveControl.setTargetPressure(min(NO_FLOW_REDUCED_PRESSURE, mTargetPressurePrevious));
             changeMode(REGULATE_REDUCED);
         }
         break;
@@ -217,7 +227,13 @@ void SystemModeController::handle()
             ESP_LOGW(TAG, "detected continuous flow for more than %d s -> setting pressure to previous value %.2f bar", NO_FLOW_REDUCED_TIMEOUT, mTargetPressurePrevious);
             // set to previous target pressure
             valveControl.setTargetPressure(mTargetPressurePrevious);
-            changeMode(REGULATE_REDUCED);
+            changeMode(REGULATE_PRESSURE);
+        }
+        // check if target pressure got changed by user
+        if (valveControl.getTargetPressure() != mTargetPressurePrevious){
+            ESP_LOGW(TAG, "target pressure changed while in reduced mode -> switching to normal operation");
+            mTimestampLastFlow = esp_log_timestamp(); // reset no-flow timeout
+            changeMode(REGULATE_PRESSURE);
         }
         break;
     }

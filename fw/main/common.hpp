@@ -88,3 +88,37 @@ T limitToRange(T value, T min, T max)
         return value;
     }
 }
+
+
+//=================
+//====== min ======
+//=================
+// get the smallest value of any number of arguments
+// one argument only:
+template<typename T>
+inline T min(T first) {
+    return first;
+}
+// variable arguments:
+template<typename T, typename... Args>
+inline T min(T first, Args... args) {
+    T smallestInTail = min(args...);
+    return (first < smallestInTail) ? first : smallestInTail;
+}
+
+
+//=================
+//====== max ======
+//=================
+// get the largest value of any number of arguments
+// one argument only:
+template<typename T>
+inline T max(T first) {
+    return first;
+}
+// variable arguments:
+template<typename T, typename... Args>
+inline T max(T first, Args... args) {
+    T largestInTail = max(args...);
+    return (first > largestInTail) ? first : largestInTail;
+}
