@@ -164,6 +164,14 @@ void handleTopicSetTargetPressure(char * data, int len) {
     valveControl.setTargetPressure(value);
 }
 
+void handleTopicSetAcceptableDiff(char * data, int len) {
+    ESP_LOGW(TAG, "recieved acceptable diff");
+    double value;
+    // convert data to float and update valve config if successfull
+    if (!cStrToFloat(data, len, &value))
+    valveControl.setAcceptableDiff(value);
+}
+
 void handleTopicStart(char * data, int len) {
     ESP_LOGW(TAG, "start via mqtt");
     control.changeMode(REGULATE_PRESSURE);
@@ -206,6 +214,13 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         0,
         handleTopicValveSetOffset //function from circulation.hpp
+    },
+    {
+        "set acceptable pressure diff",
+        "waterpump/valve/setAcceptableDiff",
+        0,
+        0,
+        handleTopicSetAcceptableDiff
     },
     {
         "valve reset",

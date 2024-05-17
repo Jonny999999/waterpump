@@ -18,6 +18,7 @@ extern "C"
 #define Kp 5     // proportional gain
 #define Ki 0.03  // integral gain
 #define Kd 200   // derivative gain
+#define ACCEPTABLE_DIFF 0.05 // skip compute when difference is smaller than this (less oscillation / valve wear)
 //TODO variable offset depending on target pressure?
 #define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
 #define INTEGRAL_LIMIT_OFFSET 0  // increase/decrease max possible integral value (valve percent)
@@ -25,7 +26,7 @@ extern "C"
 // 0: valve can reach exactly 0 to 100%
 // <0: valve can not reach limits (e.g. -20 -> 20% to 80%)
 // >0: valve can overshoot - danger of windup (e.g. 20 -> -20% to 120%)
-#define MIN_VALVE_MOVE_ANGLE 2
+#define MIN_VALVE_MOVE_PERCENT 2 // only update valve position when change is more than that value (prevent continous very small movement, reduce valve wear)
 #define MAX_DT_MS 5000 // prevent bugged action with large time delta at first after several seconds
 
 //=================================
@@ -34,11 +35,13 @@ extern "C"
 ControlledValve::ControlledValve(ServoMotor *pValve, float defaultTargetPressure)
 {
     // copy pointer and config values
+    // TODO get values from nvs instead of default?
     mpValve = pValve;
     mKp = Kp;
     mKi = Ki;
     mKd = Kd;
     mOffset = OFFSET;
+    mAcceptableDiff = ACCEPTABLE_DIFF;
 
     mTargetPressure = defaultTargetPressure;
 }
@@ -126,6 +129,11 @@ void ControlledValve::compute(float pressureNow)
         ESP_LOGE("regulateValve", "dt too large (%ldms), ignoring this run", dt);
         return;
     }
+    // ignore run when target pressure is already reached / in acceptable range
+    else if (fabs(pressureDiff) < mAcceptableDiff){
+        ESP_LOGI("regulateValve", "pressure diff %.2f in acceptable range %.2f -> ignoring this run", pressureDiff, ACCEPTABLE_DIFF);
+        return;
+    }
 
     // integrate
     mIntegralAccumulator += pressureDiff * dt;
@@ -155,7 +163,7 @@ void ControlledValve::compute(float pressureNow)
 
     // move valve to new pos
     // only move if threshold exceeded to reduce osciallation and unnecessary hardware wear
-    if (fabs(oldPos - mTargetValvePos) > MIN_VALVE_MOVE_ANGLE)
+    if (fabs(oldPos - mTargetValvePos) > MIN_VALVE_MOVE_PERCENT)
     {
         mpValve->setPercentage(mTargetValvePos);
         ESP_LOGI("regulateValve", "moving valve by %.2f%% degrees to %.2f%%", oldPos - mTargetValvePos, mTargetValvePos);
