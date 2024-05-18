@@ -46,22 +46,20 @@ void task_mqtt(void *pvParameters)
             vTaskDelay(5000 / portTICK_PERIOD_MS);
             continue;
         }
-        // ESP_LOGI(TAG, "publishing values");
+        ESP_LOGV(TAG, "publishing values");
 
-        //--- publish current pressure ---
+        //publish current pressure
         mqtt_publish(pressureSensor.readBar(), "waterpump/pressure_bar", 0);
 
-        //--- publish valve control stats ---
+        // get current stats from object
         float pressureDiff, targetPressure, p, i, d, valve;
         uint32_t time;
-        // get current stats from object
         valveControl.getCurrentStats(&time, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
 
         // publish motor speed
         mqtt_publish(motor.getSpeedLevel() ,"waterpump/status/motorLevel", 0);
 
-
-        //publish values one by one
+        //publish valve regulation stats
         mqtt_publish(pressureDiff ,"waterpump/valve/pidStats/pressureDiff", 0);
         mqtt_publish(targetPressure ,"waterpump/valve/pidStats/targetPressure", 0);
         mqtt_publish(valve,"waterpump/valve/valvePer", 0);
@@ -69,24 +67,9 @@ void task_mqtt(void *pvParameters)
         mqtt_publish(i,"waterpump/valve/pidStats/i", 0);
         mqtt_publish(d,"waterpump/valve/pidStats/d", 0);
 
-        // flow sensor
+        // publish flow sensor
         mqtt_publish((float)(flowSensor.getFlowRate_literPerSecond()*60), "waterpump/flowRate_literPerMinute", 0);
         mqtt_publish(flowSensor.getVolume_liter(), "waterpump/volume_liter", 0);
-        /*  publish all at once using json object (publish causes memoryleak)
-        // create json object
-        cJSON *jsonObj = cJSON_CreateObject();
-        cJSON_AddNumberToObject(jsonObj, "timestamp", time);
-        cJSON_AddNumberToObject(jsonObj, "pressureDiff", pressureDiff);
-        cJSON_AddNumberToObject(jsonObj, "p", p);
-        cJSON_AddNumberToObject(jsonObj, "i", i);
-        cJSON_AddNumberToObject(jsonObj, "d", d);
-        cJSON_AddNumberToObject(jsonObj, "valvePer", valve);
-        // publish json object
-        // TODO: this publish causes memory leak by 100bytes each run (it supposedly clears again after some minutes according to forum)
-        mqtt_publish(cJSON_Print(jsonObj), "waterpump/valve/pidStats", 0);
-        // free memory
-        cJSON_Delete(jsonObj);
-        */
 
        // publish less frequently when in IDLE mode
         if (control.getMode() == controlMode_t::IDLE)
@@ -182,38 +165,51 @@ void handleTopicStop(char * data, int len) {
     control.changeMode(IDLE);
 }
 
+void handleTopicRequestParameters(char * data, int len) {
+    ESP_LOGW(TAG, "publish current parameters as requested");
+    double p, i, d, offset;
+    float acceptableDiff;
+    valveControl.getCurrentSettings(&p, &i, &d, &offset, &acceptableDiff);
+    mqtt_publish((float)p, "waterpump/valve/getSettings/Kp", 0);
+    mqtt_publish((float)i, "waterpump/valve/getSettings/Ki", 0);
+    mqtt_publish((float)d, "waterpump/valve/getSettings/Kd", 0);
+    mqtt_publish((float)offset, "waterpump/valve/getSettings/offset", 0);
+    mqtt_publish(acceptableDiff, "waterpump/valve/getSettings/acceptableDiff", 0);
+}
+
 //=================================
 //======= subscribed topics =======
 //=================================
 // configure all subscribed topics
 mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
+    //==== configuration ====
     {
         "valve set Kp",
         "waterpump/valve/setKp",
         0,
         0,
-        handleTopicValveSetKp //function from circulation.hpp
+        handleTopicValveSetKp
     },
     {
         "valve set Ki",
         "waterpump/valve/setKi",
         0,
         0,
-        handleTopicValveSetKi //function from circulation.hpp
+        handleTopicValveSetKi
     },
     {
         "valve set Kd",
         "waterpump/valve/setKd",
         0,
         0,
-        handleTopicValveSetKd //function from circulation.hpp
+        handleTopicValveSetKd
     },
     {
         "valve set Offset",
         "waterpump/valve/setOffset",
         0,
         0,
-        handleTopicValveSetOffset //function from circulation.hpp
+        handleTopicValveSetOffset
     },
     {
         "set acceptable pressure diff",
@@ -222,6 +218,8 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         handleTopicSetAcceptableDiff
     },
+
+    //==== actions ====
     {
         "valve reset",
         "waterpump/valve/reset",
@@ -249,6 +247,13 @@ mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
         0,
         0,
         handleTopicSetTargetPressure
+    },
+    {
+        "request parameters",
+        "waterpump/requestParameters",
+        0,
+        0,
+        handleTopicRequestParameters
     },
 };
 size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt_subscribedTopic_t);

@@ -69,12 +69,13 @@ void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pres
     *d = mDerivative;
     *valvePos = mTargetValvePos;
 }
-void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd, double *offset) const
+void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd, double *offset, float *acceptableDiff) const
 {
     *kp = mKp;
     *ki = mKi;
     *kd = mKd;
     *offset = mOffset;
+    *acceptableDiff = mAcceptableDiff;
 }
 
 
