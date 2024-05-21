@@ -230,7 +230,7 @@ void SystemModeController::handle()
             changeMode(REGULATE_PRESSURE);
         }
         // check if target pressure got changed by user
-        if (valveControl.getTargetPressure() != mTargetPressurePrevious){
+        if (valveControl.getTargetPressure() != min(NO_FLOW_REDUCED_PRESSURE, mTargetPressurePrevious)){
             ESP_LOGW(TAG, "target pressure changed while in reduced mode -> switching to normal operation");
             mTimestampLastFlow = esp_log_timestamp(); // reset no-flow timeout
             changeMode(REGULATE_PRESSURE);
