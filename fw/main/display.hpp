@@ -50,7 +50,7 @@ class handledDisplay {
 
         // access variable 'isLocked (only used externally e.g. for communicating between tasks)
         void lock(){mIsLocked = true;};
-        void unnlock(){mIsLocked = false;};
+        void unlock(){mIsLocked = false;};
         bool isLocked()const{return mIsLocked;};
 
         //TODO: blinkStrings and blink are very similar - optimize?

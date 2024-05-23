@@ -46,7 +46,7 @@ float AnalogPressureSensor::adcToBar(int adcValue)
     float pressure;
     if (mUsingLookupTable)
     {
-        pressure = scaleUsingLookupTable(mLookupTableAdcBar, mLookupCount, adcValue);
+        pressure = scaleUsingLookupTable<float>(mLookupTableAdcBar, mLookupCount, adcValue);
         ESP_LOGI(TAG, "converted using lookupTable: adc=%d --> pressure=%f", adcValue, pressure);
     }
     else

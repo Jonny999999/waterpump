@@ -24,7 +24,8 @@ FlowSensor::FlowSensor(gpio_num_t gpioPulse, float pulsesPerLiter)
 
 
 //100l/min -> 20pulses/s => 1 period = 50000us
-#define MIN_PULSE_DURATION_US 50000 //period (rising edge to next rising edge)
+//2024.05.17: at 2bar fully open valve measuread period = ~25ms using scope -> decreasing value
+#define MIN_PULSE_DURATION_US 10000 //period (rising edge to next rising edge)
 void FlowSensor::countPulse()
 {
     // get current timestamp in us
@@ -35,6 +36,11 @@ void FlowSensor::countPulse()
     if (now - mTimestampLastPulseUs > MIN_PULSE_DURATION_US) {
         // increment pulse count by 1
         mPulseCount++;
+    }
+    else
+    {
+        // track ignored pulses for debugging
+        mIgnoredPulses++;
     }
 
     // update timestamp last pulse (in any case)
@@ -119,7 +125,7 @@ void FlowSensor::read()
     // calculate flow rate
     mFlow_literPerSecond = ((double)pulsesNew / mConfigPulsesPerLiter) / ((double)msPassed / 1000);
     // log output
-    ESP_LOGD(TAG, "read - msPassed=%ld, pulsesNow=%ld, pulsesNew=%ld, flow=%.6flps, absVolume=%.3fl", msPassed, pulsesNow, pulsesNew, mFlow_literPerSecond, mVolume_liter);
+    ESP_LOGD(TAG, "read - msPassed=%ld, pulsesTotal=%ld, pulsesNew=%ld, ignored=%ld, flow=%.6flps, absVolume=%.3fl", msPassed, pulsesNow, pulsesNew, mIgnoredPulses, mFlow_literPerSecond, mVolume_liter);
 
     // update variables for next run
     mPulseCountLastRead = pulsesNow;

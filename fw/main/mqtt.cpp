@@ -15,7 +15,8 @@ extern "C"{
 #include "global.hpp"
 #include "mqtt.hpp"
 
-#include <cJSON.h>
+// all MQTT_TOPIC__ definitions:
+#include "mqttTopics.h"
 
 
 //---------------------
@@ -46,58 +47,37 @@ void task_mqtt(void *pvParameters)
             vTaskDelay(5000 / portTICK_PERIOD_MS);
             continue;
         }
-        // ESP_LOGI(TAG, "publishing values");
+        ESP_LOGV(TAG, "publishing values");
 
-        //--- publish current pressure ---
-        mqtt_publish(pressureSensor.readBar(), "waterpump/pressure_bar", 0);
-
-        //--- publish valve control stats ---
+        // get current stats from object
         float pressureDiff, targetPressure, p, i, d, valve;
         uint32_t time;
-        // get current stats from object
         valveControl.getCurrentStats(&time, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
 
         // publish motor speed
-        mqtt_publish(motor.getSpeedLevel() ,"waterpump/status/motorLevel", 0);
+        mqtt_publish(motor.getSpeedLevel(), MQTT_TOPIC__MOTOR_LEVEL, 0);
 
+        //publish current pressure
+        mqtt_publish(pressureSensor.readBar(), MQTT_TOPIC__PRESSURE_BAR, 0);
 
-        //publish values one by one
-        mqtt_publish(pressureDiff ,"waterpump/valve/pidStats/pressureDiff", 0);
-        mqtt_publish(targetPressure ,"waterpump/valve/pidStats/targetPressure", 0);
-        mqtt_publish(valve,"waterpump/valve/valvePer", 0);
-        mqtt_publish(p,"waterpump/valve/pidStats/p", 0);
-        mqtt_publish(i,"waterpump/valve/pidStats/i", 0);
-        mqtt_publish(d,"waterpump/valve/pidStats/d", 0);
+        //publish valve regulation stats
+        mqtt_publish(pressureDiff,    MQTT_TOPIC__PRESSURE_DIFF, 0);
+        mqtt_publish(targetPressure,  MQTT_TOPIC__TARGET_PRESSURE, 0);
+        mqtt_publish(valve, MQTT_TOPIC__VALVE_PER, 0);
+        mqtt_publish(p,     MQTT_TOPIC__P_VALUE, 0);
+        mqtt_publish(i,     MQTT_TOPIC__I_VALUE, 0);
+        mqtt_publish(d,     MQTT_TOPIC__D_VALUE, 0);
 
-        // flow sensor
-        mqtt_publish((float)(flowSensor.getFlowRate_literPerSecond()*60), "waterpump/flowRate_literPerMinute", 0);
-        mqtt_publish(flowSensor.getVolume_liter(), "waterpump/volume_liter", 0);
-        /*  publish all at once using json object (publish causes memoryleak)
-        // create json object
-        cJSON *jsonObj = cJSON_CreateObject();
-        cJSON_AddNumberToObject(jsonObj, "timestamp", time);
-        cJSON_AddNumberToObject(jsonObj, "pressureDiff", pressureDiff);
-        cJSON_AddNumberToObject(jsonObj, "p", p);
-        cJSON_AddNumberToObject(jsonObj, "i", i);
-        cJSON_AddNumberToObject(jsonObj, "d", d);
-        cJSON_AddNumberToObject(jsonObj, "valvePer", valve);
-        // publish json object
-        // TODO: this publish causes memory leak by 100bytes each run (it supposedly clears again after some minutes according to forum)
-        mqtt_publish(cJSON_Print(jsonObj), "waterpump/valve/pidStats", 0);
-        // free memory
-        cJSON_Delete(jsonObj);
-        */
+        // publish flow sensor
+        mqtt_publish((float)(flowSensor.getFlowRate_literPerSecond()*60), MQTT_TOPIC__FLOW_LITER_PER_MINUTE, 0);
+        mqtt_publish(flowSensor.getVolume_liter(), MQTT_TOPIC__VOLUME_LITER, 0);
 
        // publish less frequently when in IDLE mode
         if (control.getMode() == controlMode_t::IDLE)
-        {
             vTaskDelay(PUBLISH_INTERVAL_IDLE / portTICK_PERIOD_MS);
-        }
         else
-        {
             vTaskDelay(PUBLISH_INTERVAL_RUNNING / portTICK_PERIOD_MS);
-        }
-    }
+    } // end while
 }
 
 //===========================================
@@ -128,6 +108,7 @@ int cStrToFloat(char *data, int len, double *result)
     }
 }
 
+//--- set config options ---
 void handleTopicValveSetKp(char * data, int len) {
     double value;
     // convert data to float and assign to Kp if successfull
@@ -155,7 +136,15 @@ void handleTopicValveSetOffset(char * data, int len) {
 void handleTopicValveReset(char * data, int len) {
     valveControl.reset();
 }
+void handleTopicSetAcceptableDiff(char * data, int len) {
+    ESP_LOGW(TAG, "recieved acceptable diff");
+    double value;
+    // convert data to float and update valve config if successfull
+    if (!cStrToFloat(data, len, &value))
+    valveControl.setAcceptableDiff(value);
+}
 
+//--- control pump ---
 void handleTopicSetTargetPressure(char * data, int len) {
     ESP_LOGW(TAG, "recieved target pressure");
     double value;
@@ -163,15 +152,32 @@ void handleTopicSetTargetPressure(char * data, int len) {
     if (!cStrToFloat(data, len, &value))
     valveControl.setTargetPressure(value);
 }
-
 void handleTopicStart(char * data, int len) {
     ESP_LOGW(TAG, "start via mqtt");
     control.changeMode(REGULATE_PRESSURE);
+    // immediately publish changed motor level
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    mqtt_publish(motor.getSpeedLevel(), MQTT_TOPIC__MOTOR_LEVEL, 0);
 }
-
 void handleTopicStop(char * data, int len) {
     ESP_LOGW(TAG, "stop via mqtt");
     control.changeMode(IDLE);
+    // immediately publish changed motor level
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+    mqtt_publish(motor.getSpeedLevel(), MQTT_TOPIC__MOTOR_LEVEL, 0);
+}
+
+//--- other requests ---
+void handleTopicRequestParameters(char * data, int len) {
+    ESP_LOGW(TAG, "publish current parameters as requested");
+    double p, i, d, offset;
+    float acceptableDiff;
+    valveControl.getCurrentSettings(&p, &i, &d, &offset, &acceptableDiff);
+    mqtt_publish((float)p, MQTT_TOPIC__KP, 0);
+    mqtt_publish((float)i, MQTT_TOPIC__KI, 0);
+    mqtt_publish((float)d, MQTT_TOPIC__KD, 0);
+    mqtt_publish((float)offset, MQTT_TOPIC__OFFSET, 0);
+    mqtt_publish(acceptableDiff, MQTT_TOPIC__ACCEPTABLE_DIFF, 0);
 }
 
 //=================================
@@ -179,61 +185,78 @@ void handleTopicStop(char * data, int len) {
 //=================================
 // configure all subscribed topics
 mqtt_subscribedTopic_t mqtt_subscribedTopics[] = {
+    //==== configuration ====
     {
         "valve set Kp",
-        "waterpump/valve/setKp",
+        MQTT_TOPIC__SET_KP,
         0,
         0,
-        handleTopicValveSetKp //function from circulation.hpp
+        handleTopicValveSetKp
     },
     {
         "valve set Ki",
-        "waterpump/valve/setKi",
+        MQTT_TOPIC__SET_KI,
         0,
         0,
-        handleTopicValveSetKi //function from circulation.hpp
+        handleTopicValveSetKi
     },
     {
         "valve set Kd",
-        "waterpump/valve/setKd",
+        MQTT_TOPIC__SET_KD,
         0,
         0,
-        handleTopicValveSetKd //function from circulation.hpp
+        handleTopicValveSetKd
     },
     {
         "valve set Offset",
-        "waterpump/valve/setOffset",
+        MQTT_TOPIC__SET_OFFSET,
         0,
         0,
-        handleTopicValveSetOffset //function from circulation.hpp
+        handleTopicValveSetOffset
     },
     {
+        "set acceptable pressure diff",
+        MQTT_TOPIC__SET_ACCEPTABLE_DIFF,
+        0,
+        0,
+        handleTopicSetAcceptableDiff
+    },
+
+    //==== actions ====
+    {
         "valve reset",
-        "waterpump/valve/reset",
+        MQTT_TOPIC__RESET,
         0,
         0,
         handleTopicValveReset
     },
     {
         "start pump",
-        "waterpump/start",
+        MQTT_TOPIC__START,
         0,
         0,
         handleTopicStart
     },
     {
         "stop pump",
-        "waterpump/stop",
+        MQTT_TOPIC__STOP,
         0,
         0,
         handleTopicStop
     },
     {
         "set target pressure",
-        "waterpump/setTargetPressure",
+        MQTT_TOPIC__SET_TARGET_PRESSURE,
         0,
         0,
         handleTopicSetTargetPressure
+    },
+    {
+        "request parameters",
+        MQTT_TOPIC__REQUEST_PARAMMETERS,
+        0,
+        0,
+        handleTopicRequestParameters
     },
 };
 size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt_subscribedTopic_t);
@@ -251,14 +274,14 @@ size_t mqtt_subscribedTopics_count = sizeof(mqtt_subscribedTopics) / sizeof(mqtt
 // general custom functions for using mqtt:
 
 //--- publish string ---
-void mqtt_publish(char *str, char *topic, uint8_t qos){
+void mqtt_publish(char *str, const char *topic, uint8_t qos){
     esp_mqtt_client_publish(mqtt_client, topic, str, 0, qos, 0);
     ESP_LOGI(TAG, "Publishing value - topic:'%s' payload:'%s' qos=%d ...", topic, str, qos);
 }
 
 
 //--- publish int ---
-void mqtt_publish(int value, char *topic, uint8_t qos){
+void mqtt_publish(int value, const char *topic, uint8_t qos){
     size_t maxLen = 32;
     char str[maxLen];
     snprintf(str, maxLen, "%d", value);
@@ -268,7 +291,7 @@ void mqtt_publish(int value, char *topic, uint8_t qos){
 
 
 //--- publish float ---
-void mqtt_publish(float value, char *topic, uint8_t qos){
+void mqtt_publish(float value, const char *topic, uint8_t qos){
     size_t maxLen = 32;
     char str[maxLen];
     //check if value fits in string with maxLen (e.g. very large number)

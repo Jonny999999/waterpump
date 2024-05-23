@@ -27,13 +27,13 @@ void task_mqtt( void * pvParameters );
 //--- publish string ---
 //FIXME: string const too? calling the function without a variable (e.g. "asdasd") results in warning: C++ forbids converting a string constant to 'char*'
 //TODO: add return value if successful?
-void mqtt_publish(char *string, char *topic, uint8_t qos = 0);
+void mqtt_publish(char *string, const char *topic, uint8_t qos = 0);
 
 //--- publish int ---
-void mqtt_publish(int value, char *topic, uint8_t qos = 0);
+void mqtt_publish(int value, const char *topic, uint8_t qos = 0);
 
 //--- publish float ---
-void mqtt_publish(float value, char *topic, uint8_t qos = 0);
+void mqtt_publish(float value, const char *topic, uint8_t qos = 0);
 
 //--- check if connected ---
 bool mqtt_getConnectedState();
