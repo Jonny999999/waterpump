@@ -68,12 +68,12 @@ Vfd4DigitalPins motor(GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_4, true);
 AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]));
 
 // create global flow sensor object
-FlowSensor flowSensor(GPIO_NUM_26, 12);
+FlowSensor flowSensor(GPIO_NUM_26, 12, 10);
 
 // create global servo object
 servoConfig_t servoConfig{
     .gpioPwmSignal = 27,
-    .gpioEnablePower = 13,       // onboard realy
+    .gpioEnablePower = 13,       // onboard relay
     .powerEnableRequired = true, // require enable() call to turn above pin on
     .ratedAngle = 180,
     // Coupling V1: 17 to 87 (no play)
