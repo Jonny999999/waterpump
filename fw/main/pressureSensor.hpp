@@ -1,5 +1,4 @@
 #pragma once
-#include <vector>
 
 class AnalogPressureSensor
 {
@@ -7,6 +6,7 @@ public:
     AnalogPressureSensor(int adcChannel, float minVoltage, float maxVoltage, float minPressure, float maxPressure, uint8_t rollingAverageLength);
     // initialize using lookuptable (pass 2d array {ADC, Bar} and count of entries) instead of conversion parameters
     AnalogPressureSensor(int adcChannel, float const lookupTableAdcBar[][2], int lookupCount, uint8_t rollingAverageLength);
+    ~AnalogPressureSensor();
     void read(); // read and store current value
     float getBar(); // get currently stored bar
     float readBar(); // read and return current bar
@@ -29,5 +29,6 @@ private:
     const float (*mLookupTableAdcBar)[2]; // ptr to 2d lookup table
     int mLookupCount = 0;
     bool mUsingLookupTable = false;
-    std::vector<int> mAdcReadings;
+    uint16_t mBufferIndex = 0;
+    uint32_t *mAdcReadings;
     };
