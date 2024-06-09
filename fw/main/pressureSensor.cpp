@@ -3,6 +3,10 @@ extern "C" {
 #include <driver/adc.h>
 #include "esp_log.h"
 }
+#include <iostream>
+#include <sstream>
+#include <numeric>
+
 #include "pressureSensor.hpp"
 #include "common.hpp"
 
@@ -12,16 +16,16 @@ static const char *TAG = "pressure";
 
 
 // constructor (parameters for conversion)
-AnalogPressureSensor::AnalogPressureSensor(int adcChannel, float minVoltage, float maxVoltage, float minPressure, float maxPressure)
-    : mAdcChannel(adcChannel), mMinPressure(minPressure), mMaxPressure(maxPressure), mMinVoltage(minVoltage), mMaxVoltage(maxVoltage)
+AnalogPressureSensor::AnalogPressureSensor(int adcChannel, float minVoltage, float maxVoltage, float minPressure, float maxPressure, uint8_t rollingAverageLength)
+    : mAdcChannel(adcChannel), mMinPressure(minPressure), mMaxPressure(maxPressure), mMinVoltage(minVoltage), mMaxVoltage(maxVoltage), mRollingAverageLength(rollingAverageLength)
 {
     // initialize ADC
     init();
 }
 
 // constructor (lookup table for conversion)
-AnalogPressureSensor::AnalogPressureSensor(int adcChannel, float const lookupTableAdcBar[][2], int lookupCount)
-    : mAdcChannel(adcChannel), mMinPressure(0), mMaxPressure(0), mMinVoltage(0), mMaxVoltage(0)
+AnalogPressureSensor::AnalogPressureSensor(int adcChannel, float const lookupTableAdcBar[][2], int lookupCount, uint8_t rollingAverageLength)
+    : mAdcChannel(adcChannel), mMinPressure(0), mMaxPressure(0), mMinVoltage(0), mMaxVoltage(0), mRollingAverageLength(rollingAverageLength)
     {
     // copy pointer to lookup table
     mLookupTableAdcBar = lookupTableAdcBar;
@@ -74,8 +78,22 @@ void AnalogPressureSensor::read()
     }
     mCurrentAdcValue = sum/ADC_READ_SAMPLE_COUNT;
 
+    // add new reading to the rolling average buffer
+    mAdcReadings.push_back(mCurrentAdcValue);
+    if (mAdcReadings.size() > mRollingAverageLength)
+    {
+        mAdcReadings.erase(mAdcReadings.begin());
+    }
+    // logging
+    ESP_LOGD(TAG, "Adding adc value %d to buffer", mCurrentAdcValue);
+    if (esp_log_level_get(TAG) == ESP_LOG_DEBUG)
+        printRollingAverageBuffer(); // print entire buffer as values in bar
+
+    // calculate rolling average
+    float averageAdc = (double)(std::accumulate(mAdcReadings.begin(), mAdcReadings.end(), 0)) / mAdcReadings.size();
+
     // Convert and store pressure
-    mCurrentPressureBar = adcToBar(mCurrentAdcValue);
+    mCurrentPressureBar = adcToBar(averageAdc);
 }
 
 
@@ -93,4 +111,16 @@ float AnalogPressureSensor::readBar()
 {
     read();
     return getBar();
+}
+
+
+
+// method for printing the rolling average buffer
+void AnalogPressureSensor::printRollingAverageBuffer() {
+    std::stringstream ss;
+    ss << "Buffer: ";
+    for (const auto& element : mAdcReadings) {
+        ss << adcToBar(element) << " ";
+    }
+    ESP_LOGD(TAG, "Rolling Average Buffer: %s", ss.str().c_str());
 }

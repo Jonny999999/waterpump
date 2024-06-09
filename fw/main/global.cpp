@@ -65,7 +65,7 @@ Vfd4DigitalPins motor(GPIO_NUM_15, GPIO_NUM_16, GPIO_NUM_2, GPIO_NUM_4, true);
 
 // create global pressure sensor on gpio 36
 //AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, 0.1, 2.5, 0, 30);
-AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]));
+AnalogPressureSensor pressureSensor(ADC1_CHANNEL_0, lookupPSensor, sizeof(lookupPSensor)/sizeof(lookupPSensor[0]), 3);
 
 // create global flow sensor object
 FlowSensor flowSensor(GPIO_NUM_26, 12, 10);
