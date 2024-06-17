@@ -125,7 +125,6 @@ void FlowSensor::read()
     // update circular buffer
     mPulseCounts[mBufferIndex] = mPulseCount;
     mTimestamps[mBufferIndex] = esp_log_timestamp();
-    mBufferIndex = (mBufferIndex + 1) % mBufferSize;
 
     // get relevant flow rate parameters from buffer
     uint32_t pulsesNow = mPulseCounts[mBufferIndex];                        // latest value
@@ -133,6 +132,8 @@ void FlowSensor::read()
     uint32_t timestampNow = mTimestamps[mBufferIndex];                      // latest value
     uint32_t timestampPast = mTimestamps[(mBufferIndex + 1) % mBufferSize]; // oldest value in buffer
     uint32_t msPassed = timestampNow - timestampPast;
+
+    mBufferIndex = (mBufferIndex + 1) % mBufferSize;
 
     // calculate flow rate
     mFlow_literPerSecond = ((double)(pulsesNow - pulsesPast) / mConfigPulsesPerLiter) / ((double)msPassed / 1000);

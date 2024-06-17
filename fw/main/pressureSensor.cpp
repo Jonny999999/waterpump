@@ -59,7 +59,7 @@ float AnalogPressureSensor::adcToBar(int adcValue)
     if (mUsingLookupTable)
     {
         pressure = scaleUsingLookupTable<float>(mLookupTableAdcBar, mLookupCount, adcValue);
-        ESP_LOGI(TAG, "converted using lookupTable: adc=%d --> pressure=%f", adcValue, pressure);
+        ESP_LOGV(TAG, "converted using lookupTable: adc=%d --> pressure=%f", adcValue, pressure);
     }
     else
     {
@@ -68,7 +68,7 @@ float AnalogPressureSensor::adcToBar(int adcValue)
 
         // Convert voltage range (e.g. 0.25V to 2.25V) to pressure range (e.g. 0 to 30 bar)
         pressure = (voltage - mMinVoltage) * (mMaxPressure / (mMaxVoltage - mMinVoltage));
-        ESP_LOGI(TAG, "converted using params: adc=%d, voltage=%f, pressure=%f", adcValue, voltage, pressure);
+        ESP_LOGV(TAG, "converted using params: adc=%d, voltage=%f, pressure=%f", adcValue, voltage, pressure);
     }
 
     return pressure;
