@@ -13,12 +13,19 @@ static const char *TAG = "flowSensor";
 
 
 // constructor
-FlowSensor::FlowSensor(gpio_num_t gpioPulse, float pulsesPerLiter)
+FlowSensor::FlowSensor(gpio_num_t gpioPulse, float pulsesPerLiter, uint32_t bufferSize)
 {
     ESP_LOGW(TAG, "Creating flow sensor...");
+
     // copy config
     mGpioPulse = gpioPulse;
     mConfigPulsesPerLiter = pulsesPerLiter;
+    mBufferSize = bufferSize;
+
+    // create buffer initialized with 0
+    mPulseCounts = new uint32_t[mBufferSize]();
+    mTimestamps = new uint32_t[mBufferSize]();
+
     // init(); not running init here due to error when running gpio_install_isr_service(0)
 }
 
@@ -88,7 +95,6 @@ void FlowSensor::init()
 void FlowSensor::reset(){
     ESP_LOGI(TAG, "resetting pulse count to 0");
     mPulseCount = 0;
-    mPulseCountLastRead = 0;
     read(); // sets volume, flow to 0 and updates timestamp
 }
 
@@ -106,28 +112,47 @@ void FlowSensor::read()
         return;
     }
 
-    // calculate passed time
-    uint32_t timestampNow = esp_log_timestamp();
-    uint32_t msPassed = timestampNow - mTimestampLastRead;
-    if (msPassed < MIN_READ_PERIOD_MS) {
-        ESP_LOGE(TAG, ".read(): already read %ldms ago - updating volume only! (min gap is %dms)", msPassed, MIN_READ_PERIOD_MS);
+    // prevent too fast flow update (inaccurate)
+    uint32_t timeSinceLastRun = esp_log_timestamp() - mTimestampLastRead;
+    if (timeSinceLastRun < MIN_READ_PERIOD_MS)
+    {
+        ESP_LOGE(TAG, ".read(): already read %ldms ago - updating volume only! (min gap is %dms)", timeSinceLastRun, MIN_READ_PERIOD_MS);
         // calculate absolute volume
         mVolume_liter = mPulseCount / mConfigPulsesPerLiter;
         return;
     }
 
-    // calculated pulses changed
-    uint32_t pulsesNow = mPulseCount; // buffer current pulses (in case of change while calculating)
-    uint32_t pulsesNew = pulsesNow - mPulseCountLastRead;
+    // update circular buffer
+    mPulseCounts[mBufferIndex] = mPulseCount;
+    mTimestamps[mBufferIndex] = esp_log_timestamp();
+
+    // get relevant flow rate parameters from buffer
+    uint32_t pulsesNow = mPulseCounts[mBufferIndex];                        // latest value
+    uint32_t pulsesPast = mPulseCounts[(mBufferIndex + 1) % mBufferSize];   // oldest value in buffer
+    uint32_t timestampNow = mTimestamps[mBufferIndex];                      // latest value
+    uint32_t timestampPast = mTimestamps[(mBufferIndex + 1) % mBufferSize]; // oldest value in buffer
+    uint32_t msPassed = timestampNow - timestampPast;
+
+    mBufferIndex = (mBufferIndex + 1) % mBufferSize;
+
+    // calculate flow rate
+    mFlow_literPerSecond = ((double)(pulsesNow - pulsesPast) / mConfigPulsesPerLiter) / ((double)msPassed / 1000);
 
     // calculate absolute volume
     mVolume_liter = pulsesNow / mConfigPulsesPerLiter;
-    // calculate flow rate
-    mFlow_literPerSecond = ((double)pulsesNew / mConfigPulsesPerLiter) / ((double)msPassed / 1000);
-    // log output
-    ESP_LOGD(TAG, "read - msPassed=%ld, pulsesTotal=%ld, pulsesNew=%ld, ignored=%ld, flow=%.6flps, absVolume=%.3fl", msPassed, pulsesNow, pulsesNew, mIgnoredPulses, mFlow_literPerSecond, mVolume_liter);
+
+    // Log read stats
+    ESP_LOGD(TAG, "read - timeSinceLastRead=%ld, newPulsesSinceLastRead=%ld, totalPulsesNow=%ld, absVolume=%.3f liter",
+             timeSinceLastRun,
+             pulsesNow - mPulseCounts[(mBufferIndex - 1 + mBufferSize) % mBufferSize], // count of previous run (second last)
+             pulsesNow,
+             mVolume_liter);
+    // Log flow calculation
+    ESP_LOGD(TAG, "flow - flowMeasureDuration=%ld ms, flowRecordedPulses=%ld, flow=%.6f liter-per-second",
+             msPassed,
+             pulsesNow - pulsesPast,
+             mFlow_literPerSecond);
 
     // update variables for next run
-    mPulseCountLastRead = pulsesNow;
-    mTimestampLastRead = timestampNow;
+    mTimestampLastRead = esp_log_timestamp();
 }
