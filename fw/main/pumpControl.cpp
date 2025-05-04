@@ -15,7 +15,7 @@ extern "C"
 // TODO adjust parameters
 // TODO smaller steps
 // significantly reduced values while testing 2024.05.13:
-#define Kp 5     // proportional gain
+#define Kp 4     // proportional gain
 #define Ki 0.01  // integral gain
 #define Kd 0     // derivative gain
 #define ACCEPTABLE_DIFF 0.05 // skip compute when difference is smaller than this (less oscillation / valve wear)
@@ -184,7 +184,7 @@ void ControlledValve::compute(float pressureNow)
 #define MAX_SPEED_LEVEL 3
 #define MIN_SPEED_LEVEL 1
 // TODO: adjust thresholds:
-#define VALVE_PERCENT_TOO_SLOW 5       // speed up when valve below that position and pressure too low
+#define VALVE_PERCENT_TOO_SLOW 3       // speed up when valve below that position and pressure too low
 #define VALVE_PERCENT_TOO_FAST 75      // slow down when valve above that position and pressure too high
 #define CHANGE_SPEED_WAIT_TIMEOUT 5000 // ms threshold speed change conditions have to be met before change is made
 #define PRESSURE_TOLERANCE 1 //bar

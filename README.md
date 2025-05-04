@@ -41,17 +41,17 @@ Photos of pump and control cabinet:
 
 
 # Install
-Currently using ESP-IDF version **v5.2.1**
+Currently using ESP-IDF version **v5.3.2**
 ```bash
-git clone -b v5.2.1 --recursive https://github.com/espressif/esp-idf.git /opt/esp-idf-v5.2.1
-/opt/esp-idf-v5.2.1/install.sh
+git clone -b v5.3.2 --recursive https://github.com/espressif/esp-idf.git /opt/esp-idf-v5.3.2
+/opt/esp-idf-v5.3.2/install.sh
 ```
 
 # Compile
 ### setup
 run once per terminal:
 ```
-. /opt/esp-idf-v5.2.1/export.sh
+. /opt/esp-idf-v5.3.2/export.sh
 ```
 ### build
 ```
