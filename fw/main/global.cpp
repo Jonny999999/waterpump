@@ -78,8 +78,8 @@ servoConfig_t servoConfig{
     .ratedAngle = 180,
     // Coupling V1: 17 to 87 (no play)
     // Coupling V2: 11 to 89 deg
-    .minAllowedAngle = 17, // valve completely closed
-    .maxAllowedAngle = 87, // valve completely open
+    .minAllowedAngle = 11, // valve completely closed
+    .maxAllowedAngle = 89, // valve completely open
     .invertDirection = true};
 ServoMotor servo(servoConfig);
 
