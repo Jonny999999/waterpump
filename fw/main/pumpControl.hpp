@@ -29,12 +29,22 @@ private:
     float mAcceptableDiff;
     ServoMotor *mpValve;
     // variables
-    float mProportional, mIntegral, mDerivative, mOutput;
-    float mTargetValvePos = 0;
+    float mProportional, mIntegral, mDerivative, mOutput_percentClosed;
+    float mTargetValvePercentOpen = 0;
     double mIntegralAccumulator = 0;
     uint32_t mTimestampLastRun = 0;
     float mPressureDiffLast = 0;
     float mTargetPressure = 0;
+
+    // === Valve fault detection recovery ===
+    void checkValveResponseAndRecoverIfStuck(float pressureNow);
+    static constexpr uint32_t VALVE_RECOVERY_CHECK_TIMEOUT_MS = 750;     // wait before detecting failure
+    static constexpr uint32_t VALVE_RECOVERY_RETRY_INTERVAL_MS = 3000;    // retry interval if still stuck
+    static constexpr float VALVE_RECOVERY_PRESSURE_THRESHOLD = 2.0f;      // how much too high pressure must be
+    // internal tracking variables
+    uint32_t mTimestampLastValveFullyOpenCommand = 0;
+    uint32_t mTimestampLastValveRecoveryAttempt = 0;
+
 };
 
 // function that regulates the motor speed depending on pressure and valve pos

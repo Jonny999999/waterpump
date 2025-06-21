@@ -1,5 +1,7 @@
 extern "C"
 {
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 }
@@ -68,7 +70,7 @@ void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pres
     *p = mProportional;
     *i = mIntegral;
     *d = mDerivative;
-    *valvePos = mTargetValvePos;
+    *valvePos = mTargetValvePercentOpen;
 }
 void ControlledValve::getCurrentSettings(double *kp, double *ki, double *kd, double *offset, float *acceptableDiff) const
 {
@@ -152,29 +154,85 @@ void ControlledValve::compute(float pressureNow)
     // --- derivative term ---
     mDerivative = mKd * dp / dt;
     // calculate total output
-    // note: output positive = pressure too low -> valve has to close -> reduce pos
-    mOutput = mOffset + mProportional + mIntegral + mDerivative;
+    // note: mOutput_percentClosed positive = pressure too low -> valve has to close -> reduce pos
+    mOutput_percentClosed = mOffset + mProportional + mIntegral + mDerivative;
 
     // define new valve position
     float oldPos = mpValve->getPercent();
-    // invert valve pos (output: percentage valve is CLOSED, servo: percentage valve is OPEN)
+    // invert valve pos (mOutput_percentClosed: percentage valve is CLOSED, servo: percentage valve is OPEN)
     // TODO invert servo direction
-    mTargetValvePos = 100 - mOutput;
+    mTargetValvePercentOpen = 100 - mOutput_percentClosed;
     // Ensure newPos is within the valid range [0, 100]
-    mTargetValvePos = limitToRange<float>(mTargetValvePos, 0, 100);
+    mTargetValvePercentOpen = limitToRange<float>(mTargetValvePercentOpen, 0, 100);
 
     // move valve to new pos
     // only move if threshold exceeded to reduce osciallation and unnecessary hardware wear
-    if (fabs(oldPos - mTargetValvePos) > MIN_VALVE_MOVE_PERCENT)
+    if (fabs(oldPos - mTargetValvePercentOpen) > MIN_VALVE_MOVE_PERCENT)
     {
-        mpValve->setPercentage(mTargetValvePos);
-        ESP_LOGI("regulateValve", "moving valve by %.2f%% degrees to %.2f%%", oldPos - mTargetValvePos, mTargetValvePos);
+        mpValve->setPercentage(mTargetValvePercentOpen);
+        ESP_LOGI("regulateValve", "moving valve by %.2f%% degrees to %.2f%%", oldPos - mTargetValvePercentOpen, mTargetValvePercentOpen);
     }
+
+    // detect fault condition where servo is not opening properly (hangup due to EMI?)  
+    // -> power cycle the servo
+    checkValveResponseAndRecoverIfStuck(pressureNow);
 
     // debug log
     ESP_LOGD("regulateValve", "diff=%.2fbar, dt=%dms, P=%.2f%%, I=%.2f%%, valvePrev=%.2f%%, valveTarget=%.2f%% ",
-             pressureDiff, (int)dt, mProportional, mIntegral, oldPos, mTargetValvePos);
+             pressureDiff, (int)dt, mProportional, mIntegral, oldPos, mTargetValvePercentOpen);
+
 }
+
+
+
+
+//=============================================================
+//==== ControlledValve checkValveResponseAndRecoverIfStuck ====
+//=============================================================
+// detect fault condition where servo is not opening properly (hangup due to EMI?)  
+// -> power cycle the servo
+void ControlledValve::checkValveResponseAndRecoverIfStuck(float pressureNow)
+{
+    // called only if servo is supposed to reduce pressure and target if valve fully open
+    if (mTargetValvePercentOpen >= 100)
+    {
+        // on first detection of "fully open"
+        if (mTimestampLastValveFullyOpenCommand == 0)
+        {
+            mTimestampLastValveFullyOpenCommand = getMs();
+        }
+
+        uint32_t timeSinceOpen = getMs() - mTimestampLastValveFullyOpenCommand;
+        float pressureStillHigh = pressureNow - mTargetPressure;
+
+        // detect stuck condition
+        if (timeSinceOpen > VALVE_RECOVERY_CHECK_TIMEOUT_MS &&
+            pressureStillHigh > VALVE_RECOVERY_PRESSURE_THRESHOLD)
+        {
+            // prevent excessive resets
+            if (getMs() - mTimestampLastValveRecoveryAttempt > VALVE_RECOVERY_RETRY_INTERVAL_MS)
+            {
+                ESP_LOGE("regulateValve", "Servo stuck? Valve fully open for %ldms but pressure still high (%.2f > %.2f) -> resetting servo power.",
+                         timeSinceOpen, pressureNow, mTargetPressure);
+
+                mTimestampLastValveRecoveryAttempt = getMs();
+                mpValve->disable();
+                vTaskDelay(pdMS_TO_TICKS(300)); // short power cut
+                mpValve->enable();
+                mpValve->setPercentage(mTargetValvePercentOpen); // resend current position
+            }
+        }
+    }
+    else
+    {
+        // reset tracking if valve is not fully open anymore
+        mTimestampLastValveFullyOpenCommand = 0;
+    }
+}
+
+
+
+
 
 
 
