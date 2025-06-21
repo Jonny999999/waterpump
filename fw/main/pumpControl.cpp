@@ -14,9 +14,10 @@ extern "C"
 
 // TODO adjust parameters
 // TODO smaller steps
-// significantly reduced values while testing 2024.05.13:
-#define Kp 4     // proportional gain
-#define Ki 0.01  // integral gain
+// significantly reduced values while testing 2024.05.13
+// slightly increased again 2025.06.21 P:4->5 I: 0.01->0.02
+#define Kp 5     // proportional gain
+#define Ki 0.02  // integral gain
 #define Kd 0     // derivative gain
 #define ACCEPTABLE_DIFF 0.05 // skip compute when difference is smaller than this (less oscillation / valve wear)
 //TODO variable offset depending on target pressure?

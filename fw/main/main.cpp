@@ -30,11 +30,11 @@ extern "C" void app_main(void)
     // set loglevel
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("VFD", ESP_LOG_DEBUG);
-    esp_log_level_set("servo", ESP_LOG_WARN);
+    esp_log_level_set("servo", ESP_LOG_DEBUG);
     esp_log_level_set("control", ESP_LOG_INFO);
     esp_log_level_set("pressure", ESP_LOG_WARN);
-    esp_log_level_set("flowSensor", ESP_LOG_DEBUG);
-    esp_log_level_set("regulateValve", ESP_LOG_WARN);
+    esp_log_level_set("flowSensor", ESP_LOG_WARN);
+    esp_log_level_set("regulateValve", ESP_LOG_INFO);
     esp_log_level_set("regulateMotor", ESP_LOG_INFO);
     esp_log_level_set("mqtt-task", ESP_LOG_WARN);
     esp_log_level_set("mqtt-cpp", ESP_LOG_WARN);
@@ -99,7 +99,7 @@ extern "C" void app_main(void)
 #endif
 
     //--- test servo, pressure-sensor ---
-// #define TEST_SERVO
+//#define TEST_SERVO
 #ifdef TEST_SERVO
     while (1)
     {
@@ -174,7 +174,7 @@ extern "C" void app_main(void)
             break;
         }
 
-        vTaskDelay(250 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         //vTaskDelay(portMAX_DELAY);
     } // end main-loop
 } // end app_main()

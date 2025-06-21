@@ -173,11 +173,6 @@ void ServoMotor::setAngle(float newAngle)
         ESP_LOGE(TAG, "Target '%f' is below min allowed angle -> limiting to %d", newAngle, mConfig.minAllowedAngle);
         newAngle = mConfig.minAllowedAngle;
     }
-    // log movement action
-    ESP_LOGI(TAG, "Moving by %.3f degrees, New angle of rotation: %f (%.1f %% of allowed range)",
-             fabs(mCurrentAngle - newAngle),
-             newAngle,
-             absAngleToRelPercent(newAngle));
 
     // --- compensate backlash ---
     // detect direction change
@@ -198,6 +193,12 @@ void ServoMotor::setAngle(float newAngle)
         if (compensatedAngle > mConfig.maxAllowedAngle) compensatedAngle = mConfig.maxAllowedAngle;
         if (compensatedAngle < mConfig.minAllowedAngle) compensatedAngle = mConfig.minAllowedAngle;
     }
+
+    // log movement action
+    ESP_LOGI(TAG, "Moving by %.3f degrees, New angle of rotation: %f (%.1f %% of allowed range)",
+             fabs(mCurrentAngle - compensatedAngle),
+             compensatedAngle,
+             absAngleToRelPercent(compensatedAngle));
 
     // --- apply new position ---
     // move servo to compensated angle
