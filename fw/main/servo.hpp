@@ -13,6 +13,7 @@ typedef struct servoConfig_t
     int minAllowedAngle;
     int maxAllowedAngle;
     bool invertDirection;
+    float backlashCompensationDeg = 0.0; // Additional degrees rotated when direction changes (default 0 = disabled)
 } servoConfig_t;
 
 
@@ -39,5 +40,6 @@ private:
     servoConfig_t mConfig;
     mcpwm_cmpr_handle_t mComparator = NULL;
     float mCurrentAngle = 0;
+    float mPreviousAngle = 0.0; // To track last target, for backlash compensation
     bool isEnabled = false;
 };

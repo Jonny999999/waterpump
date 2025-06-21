@@ -178,9 +178,33 @@ void ServoMotor::setAngle(float newAngle)
              fabs(mCurrentAngle - newAngle),
              newAngle,
              absAngleToRelPercent(newAngle));
-    // move servo to new angle
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(newAngle)));
+
+    // --- compensate backlash ---
+    // detect direction change
+    bool directionChanged = (newAngle > mPreviousAngle && mCurrentAngle > newAngle) ||
+                            (newAngle < mPreviousAngle && mCurrentAngle < newAngle);
+
+    float compensatedAngle = newAngle;
+
+    // apply backlash compensation if needed
+    if (mConfig.backlashCompensationDeg > 0 && directionChanged){
+        if (newAngle > mPreviousAngle){
+            compensatedAngle += mConfig.backlashCompensationDeg;
+        } else {
+            compensatedAngle -= mConfig.backlashCompensationDeg;
+        }
+        ESP_LOGW(TAG, "Applying backlash compensation: %.2f° -> %.2f°", newAngle, compensatedAngle);
+        // re-limit to allowed range
+        if (compensatedAngle > mConfig.maxAllowedAngle) compensatedAngle = mConfig.maxAllowedAngle;
+        if (compensatedAngle < mConfig.minAllowedAngle) compensatedAngle = mConfig.minAllowedAngle;
+    }
+
+    // --- apply new position ---
+    // move servo to compensated angle
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(mComparator, angleToCompareValue(compensatedAngle)));
+
     // update stored angle
+    mPreviousAngle = mCurrentAngle;
     mCurrentAngle = newAngle;
 }
 

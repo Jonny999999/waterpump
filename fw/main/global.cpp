@@ -80,7 +80,9 @@ servoConfig_t servoConfig{
     // Coupling V2: 11 to 89 deg
     .minAllowedAngle = 11, // valve completely closed
     .maxAllowedAngle = 89, // valve completely open
-    .invertDirection = true};
+    .invertDirection = true,
+    .backlashCompensationDeg = 2 // Additional degrees rotated when direction changes
+};
 ServoMotor servo(servoConfig);
 
 // create global controlled valve object that regulates the valve position
