@@ -5,6 +5,7 @@ extern "C" {
 #include "mode.hpp"
 #include "global.hpp"
 #include "common.hpp"
+#include "log_utils.hpp"
 
 //tag for logging
 static const char * TAG = "control";
@@ -191,7 +192,7 @@ void SystemModeController::handle()
         //TODO false positive at high flowrate possible? also check flow?
         //&& flowSensor.getFlowRate_literPerSecond() < NO_FLOW_THRESHOLD
     {
-        ESP_LOGE(TAG, "TIMEOUT - pressure less than %.2f for more than %d s! switching to IDLE", NO_PRESSURE_THRESHOLD, NO_PRESSURE_TIMEOUT / 1000);
+        LOGE_TERM_AND_MQTT(TAG, "TIMEOUT - pressure less than %.2f for more than %d s! switching to IDLE", NO_PRESSURE_THRESHOLD, NO_PRESSURE_TIMEOUT / 1000);
         changeMode(IDLE);
         // TODO notify display or add TIMEOUT mode that has to be reset?
     }

@@ -24,6 +24,9 @@
 #define MQTT_TOPIC__OFFSET          "waterpump/valve/getSettings/offset"
 #define MQTT_TOPIC__ACCEPTABLE_DIFF "waterpump/valve/getSettings/acceptableDiff"
 
+// publish debug output
+#define MQTT_TOPIC__LOG_ERROR       "waterpump/log/error"
+
 
 
 //===============================

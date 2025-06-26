@@ -11,6 +11,7 @@ extern "C"
 #include "vfd.hpp"
 #include "pumpControl.hpp"
 #include "common.hpp"
+#include "log_utils.hpp"
 
 #define getMs() (esp_timer_get_time() / 1000)
 
@@ -212,7 +213,7 @@ void ControlledValve::checkValveResponseAndRecoverIfStuck(float pressureNow)
             // prevent excessive resets
             if (getMs() - mTimestampLastValveRecoveryAttempt > VALVE_RECOVERY_RETRY_INTERVAL_MS)
             {
-                ESP_LOGE("regulateValve", "Servo stuck? Valve fully open for %ldms but pressure still high (%.2f > %.2f) -> resetting servo power.",
+                LOGE_TERM_AND_MQTT("regulateValve", "Servo stuck? Valve fully open for %ldms but pressure still high (%.2f > %.2f) -> resetting servo power.",
                          timeSinceOpen, pressureNow, mTargetPressure);
 
                 mTimestampLastValveRecoveryAttempt = getMs();
