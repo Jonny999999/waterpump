@@ -176,8 +176,14 @@ void ServoMotor::setAngle(float newAngle)
 
     // --- compensate backlash ---
     // detect direction change
-    bool directionChanged = (newAngle > mPreviousAngle && mCurrentAngle > newAngle) ||
-                            (newAngle < mPreviousAngle && mCurrentAngle < newAngle);
+    bool directionChanged = 
+        // increase requested, was decreasing before
+        (newAngle > mCurrentAngle && mPreviousAngle > mCurrentAngle) 
+        ||
+        // decrease requested, was increasing before
+        (newAngle < mCurrentAngle && mPreviousAngle < mCurrentAngle); 
+
+
 
     float compensatedAngle = newAngle;
 
@@ -188,7 +194,7 @@ void ServoMotor::setAngle(float newAngle)
         } else {
             compensatedAngle -= mConfig.backlashCompensationDeg;
         }
-        ESP_LOGW(TAG, "Applying backlash compensation: %.2f° -> %.2f°", newAngle, compensatedAngle);
+        ESP_LOGW(TAG, "Direction change detected -> Applying backlash compensation: target=%.2f° -> compensated=%.2f°", newAngle, compensatedAngle);
         // re-limit to allowed range
         if (compensatedAngle > mConfig.maxAllowedAngle) compensatedAngle = mConfig.maxAllowedAngle;
         if (compensatedAngle < mConfig.minAllowedAngle) compensatedAngle = mConfig.minAllowedAngle;

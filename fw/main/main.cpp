@@ -98,24 +98,6 @@ extern "C" void app_main(void)
     }
 #endif
 
-    //--- test servo, pressure-sensor ---
-//#define TEST_SERVO
-#ifdef TEST_SERVO
-    while (1)
-    {
-        // test pressure sensor
-        pressureSensor.readBar();
-        // read poti
-        int potiRaw = adc1_get_raw(ADC_POTI);
-        float potiPercent = (float)potiRaw / 4095 * 100;
-        ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
-        // apply poti to servo
-        servo.setPercentage(potiPercent);
-        // servo.setAngle(180*potiPercent/100);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-#endif
-
     //--- test flow sensor ---
 // #define TEST_FLOW_SENSOR
 #ifdef TEST_FLOW_SENSOR
@@ -136,6 +118,19 @@ extern "C" void app_main(void)
     // repeatedly run actions depending on current system mode
     while (1)
     {
+
+
+//#define TEST_SERVO
+#ifdef TEST_SERVO
+        // read poti
+        int potiRaw = adc1_get_raw(ADC_POTI);
+        float potiPercent = (float)potiRaw / 4095 * 100;
+        ESP_LOGI(TAG, "poti adc=%d per=%f", potiRaw, potiPercent);
+        // apply poti to servo
+        servo.setPercentage(potiPercent);
+#endif
+
+
         // read/update flow sensor
         flowSensor.read(); //TODO read slower, move this to separate task?
 
@@ -155,7 +150,9 @@ extern "C" void app_main(void)
                 motor.turnOn(1); // start motor at medium speed
             }
             // regulate valve pos
+#ifndef TEST_SERVO
             valveControl.compute(pressureSensor.readBar());
+#endif
             // regulate motor speed
             regulateMotor(valveControl.getPressureDiff(), &servo, &motor);
             break;
