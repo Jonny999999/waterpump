@@ -40,6 +40,7 @@ private:
     servoConfig_t mConfig;
     mcpwm_cmpr_handle_t mComparator = NULL;
     float mCurrentAngle = 0;
+    float mBacklashOffset = 0;
     float mPreviousAngle = 0.0; // To track last target, for backlash compensation
     bool isEnabled = false;
 };

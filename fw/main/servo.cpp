@@ -184,21 +184,24 @@ void ServoMotor::setAngle(float newAngle)
         (newAngle < mCurrentAngle && mPreviousAngle < mCurrentAngle); 
 
 
-
-    float compensatedAngle = newAngle;
-
-    // apply backlash compensation if needed
-    if (mConfig.backlashCompensationDeg > 0 && directionChanged){
-        if (newAngle > mPreviousAngle){
-            compensatedAngle += mConfig.backlashCompensationDeg;
+    // update backlash offset only if direction changed
+    if (mConfig.backlashCompensationDeg > 0) {
+        if (directionChanged) {
+            mBacklashOffset = (newAngle > mPreviousAngle)
+                ? +mConfig.backlashCompensationDeg
+                : -mConfig.backlashCompensationDeg;
+            ESP_LOGW(TAG, "Direction change -> New backlash offset: %.2f°", mBacklashOffset);
         } else {
-            compensatedAngle -= mConfig.backlashCompensationDeg;
+            mBacklashOffset = mBacklashOffset;  // Optional: keep current
+            // or forcefully reset if desired:
+            // mBacklashOffset = 0;
         }
-        ESP_LOGW(TAG, "Direction change detected -> Applying backlash compensation: target=%.2f° -> compensated=%.2f°", newAngle, compensatedAngle);
-        // re-limit to allowed range
-        if (compensatedAngle > mConfig.maxAllowedAngle) compensatedAngle = mConfig.maxAllowedAngle;
-        if (compensatedAngle < mConfig.minAllowedAngle) compensatedAngle = mConfig.minAllowedAngle;
     }
+    // add the determined backlash offset every run
+    float compensatedAngle = newAngle + mBacklashOffset;
+    // re-limit to allowed range
+    if (compensatedAngle > mConfig.maxAllowedAngle) compensatedAngle = mConfig.maxAllowedAngle;
+    if (compensatedAngle < mConfig.minAllowedAngle) compensatedAngle = mConfig.minAllowedAngle;
 
     // log movement action
     ESP_LOGI(TAG, "Moving by %.3f degrees, New angle of rotation: %f (%.1f %% of allowed range)",
