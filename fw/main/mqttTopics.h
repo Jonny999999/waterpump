@@ -9,6 +9,7 @@
 #define MQTT_TOPIC__PRESSURE_BAR    "waterpump/pressure_bar"
 #define MQTT_TOPIC__PRESSURE_DIFF   "waterpump/valve/pidStats/pressureDiff"
 #define MQTT_TOPIC__TARGET_PRESSURE "waterpump/valve/pidStats/targetPressure"
+#define MQTT_TOPIC__PRESSURE_NOW_SMOOTHED "waterpump/valve/pidStats/pressureNowSmoothed"
 #define MQTT_TOPIC__MOTOR_LEVEL     "waterpump/status/motorLevel"
 #define MQTT_TOPIC__VALVE_PER       "waterpump/valve/valvePer"
 #define MQTT_TOPIC__P_VALUE         "waterpump/valve/pidStats/p"

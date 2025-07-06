@@ -50,9 +50,9 @@ void task_mqtt(void *pvParameters)
         ESP_LOGV(TAG, "publishing values");
 
         // get current stats from object
-        float pressureDiff, targetPressure, p, i, d, valve;
+        float pressureDiff, pressureNowSmoothed, targetPressure, p, i, d, valve;
         uint32_t time;
-        valveControl.getCurrentStats(&time, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
+        valveControl.getCurrentStats(&time, &pressureNowSmoothed, &pressureDiff, &targetPressure, &p, &i, &d, &valve);
 
         // publish motor speed
         mqtt_publish(motor.getSpeedLevel(), MQTT_TOPIC__MOTOR_LEVEL, 0);
@@ -63,6 +63,7 @@ void task_mqtt(void *pvParameters)
         //publish valve regulation stats
         mqtt_publish(pressureDiff,    MQTT_TOPIC__PRESSURE_DIFF, 0);
         mqtt_publish(targetPressure,  MQTT_TOPIC__TARGET_PRESSURE, 0);
+        mqtt_publish(pressureNowSmoothed,  MQTT_TOPIC__PRESSURE_NOW_SMOOTHED, 0);
         mqtt_publish(valve, MQTT_TOPIC__VALVE_PER, 0);
         mqtt_publish(p,     MQTT_TOPIC__P_VALUE, 0);
         mqtt_publish(i,     MQTT_TOPIC__I_VALUE, 0);

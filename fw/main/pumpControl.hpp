@@ -17,7 +17,7 @@ public:
     void setTargetPressure(float target){mTargetPressure = target;};
     void setAcceptableDiff(float diff){mAcceptableDiff = diff;};
     // get config / status info:
-    void getCurrentStats(uint32_t *timeLastUpdate, float *pressureDiff, float *targetPressure, float *p, float *i, float *d, float *valvePos) const;
+    void getCurrentStats(uint32_t *timeLastUpdate, float *pressureNowSmoothed, float *pressureDiff, float *targetPressure, float *p, float *i, float *d, float *valvePos) const;
     float getPressureDiff() const {return mPressureDiffLast;};
     float getTargetPressure() const {return mTargetPressure;};
     void getCurrentSettings(double *kp, double *ki, double *kd, double *offset, float *acceptableDiff) const;
@@ -30,6 +30,7 @@ private:
     ServoMotor *mpValve;
     // variables
     float mProportional, mIntegral, mDerivative, mOutput_percentClosed;
+    float mFilteredPressure = 0.0;
     float mTargetValvePercentOpen = 0;
     double mIntegralAccumulator = 0;
     uint32_t mTimestampLastRun = 0;

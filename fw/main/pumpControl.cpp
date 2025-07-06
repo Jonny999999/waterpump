@@ -19,10 +19,10 @@ extern "C"
 // TODO smaller steps
 // significantly reduced values while testing 2024.05.13
 // slightly increased again 2025.06.21 P:4->5 I: 0.01->0.02
-#define Kp 5     // proportional gain
-#define Ki 0.02  // integral gain
+#define Kp 4     // proportional gain
+#define Ki 0.006  // integral gain
 #define Kd 0     // derivative gain
-#define ACCEPTABLE_DIFF 0.05 // skip compute when difference is smaller than this (less oscillation / valve wear)
+#define ACCEPTABLE_DIFF 0.15 // skip compute when difference is smaller than this (less oscillation / valve wear)
 //TODO variable offset depending on target pressure?
 #define OFFSET (100 - 30) // 0 fully open, 100 fully closed - idle valve position (expected working point)
 #define INTEGRAL_LIMIT_OFFSET 0  // increase/decrease max possible integral value (valve percent)
@@ -33,6 +33,7 @@ extern "C"
 #define MIN_VALVE_MOVE_PERCENT 2 // only update valve position when change is more than that value (prevent continous very small movement, reduce valve wear)
 #define MAX_DT_MS 5000 // prevent bugged action with large time delta at first after several seconds
 
+#define PRESSURE_SMOOTH_ALPHA 0.10 // 0-1  1: almost no smoothing, 0.2: new reading contributes 20% --- note: strongly depends on the rate called
 //=================================
 //== ControlledValve Constructor ==
 //=================================
@@ -62,11 +63,12 @@ void ControlledValve::reset(){
 //=======================
 //==== get variables ====
 //=======================
-void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pressureDiff, float * targetPressure, float *p, float *i, float *d, float *valvePos) const
+void ControlledValve::getCurrentStats(uint32_t *timestampLastUpdate, float *pressureNowSmoothed, float *pressureDiff, float * targetPressure, float *p, float *i, float *d, float *valvePos) const
 {
     // TODO mutex
     *timestampLastUpdate = mTimestampLastRun;
     *pressureDiff = mPressureDiffLast;
+    *pressureNowSmoothed = mFilteredPressure;
     *targetPressure = mTargetPressure;
     *p = mProportional;
     *i = mIntegral;
@@ -118,8 +120,13 @@ void ControlledValve::compute(float pressureNow)
     uint32_t dt, timeNow; // in milliseconds
     double dp;
 
+    float pressureNowRaw = pressureNow;
+    mFilteredPressure = PRESSURE_SMOOTH_ALPHA * pressureNow + (1.0f - PRESSURE_SMOOTH_ALPHA) * mFilteredPressure;
+    float pressureNowSmoothed = mFilteredPressure;
+
     // calculate pressure difference
-    float pressureDiff = mTargetPressure - pressureNow;
+    //float pressureDiff = mTargetPressure - pressureNow;
+    float pressureDiff = mTargetPressure - pressureNowSmoothed;
     // calculate time passed since last run
     timeNow = getMs();
     dt = timeNow - mTimestampLastRun;
@@ -245,9 +252,9 @@ void ControlledValve::checkValveResponseAndRecoverIfStuck(float pressureNow)
 #define MIN_SPEED_LEVEL 1
 // TODO: adjust thresholds:
 #define VALVE_PERCENT_TOO_SLOW 3       // speed up when valve below that position and pressure too low
-#define VALVE_PERCENT_TOO_FAST 75      // slow down when valve above that position and pressure too high
-#define CHANGE_SPEED_WAIT_TIMEOUT 5000 // ms threshold speed change conditions have to be met before change is made
-#define PRESSURE_TOLERANCE 1 //bar
+#define VALVE_PERCENT_TOO_FAST 55      // slow down when valve above that position and pressure too high
+#define CHANGE_SPEED_WAIT_TIMEOUT 4000 // ms threshold speed change conditions have to be met before change is made
+#define PRESSURE_TOLERANCE 2 //bar
 void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMotor)
 {
     static int integralSpeedChangePlanned = 0;
@@ -268,7 +275,8 @@ void regulateMotor(float pressureDiff, ServoMotor *pValve, Vfd4DigitalPins *pMot
         ESP_LOGD("regulateMotor", "motor seems too slow, incrementing time by %ld to %d", dt, integralSpeedChangePlanned);
     }
     // pressure too high but valve already wide open => slow down?
-    else if (pressureDiff < PRESSURE_TOLERANCE && pValve->getPercent() > VALVE_PERCENT_TOO_FAST && currentSpeedLevel > MIN_SPEED_LEVEL)
+    //else if (pressureDiff < PRESSURE_TOLERANCE && pValve->getPercent() > VALVE_PERCENT_TOO_FAST && currentSpeedLevel > MIN_SPEED_LEVEL)
+    else if (pValve->getPercent() > VALVE_PERCENT_TOO_FAST && currentSpeedLevel > MIN_SPEED_LEVEL)
     {
         integralSpeedChangePlanned -= 1 * dt;
         ESP_LOGD("regulateMotor", "motor seems too fast, decrementing time by %ld to %d", dt, integralSpeedChangePlanned);
